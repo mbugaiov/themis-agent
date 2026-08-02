@@ -39,11 +39,31 @@ HOSTPATH='(/Users/[A-Za-z0-9._-]+/(Downloads|projects)/|/home/[A-Za-z0-9._-]+/)'
 ENGINE_LEAK='(\bepic_key:\s*[\"'\'']?[A-Z]+-[0-9]+|/rest/agile/1\.0/board/[0-9]+)'
 
 FAIL=0
+# Diff paths for peer/cross-tenant scans — exclude CI wiring that declares deny-lists.
+PEER_DIFF_PATHS=(
+  .
+  ':(exclude).github/workflows/**'
+  ':(exclude).github/actions/**'
+  ':(exclude)bitbucket-pipelines.yml'
+  ':(exclude)docs/WIRING.md'
+)
+
 scan_regex() {
   local label="$1" pattern="$2"
+  shift 2
+  local -a diff_paths=("$@")
   local hits
   if [[ -n "$BASE" ]] && git rev-parse --git-dir >/dev/null 2>&1; then
-    hits=$(git --no-pager diff -U0 "$BASE"...HEAD 2>/dev/null | grep -E '^\+' | grep -Ev '^\+\+\+' | grep -nE "$pattern" || true)
+    if [[ ${#diff_paths[@]} -gt 0 ]]; then
+      hits=$(git --no-pager diff -U0 "$BASE"...HEAD -- "${diff_paths[@]}" 2>/dev/null \
+        | grep -E '^\+' | grep -Ev '^\+\+\+' \
+        | grep -Ev -- '--peer-pattern|THEMIS_PEER' \
+        | grep -nE "$pattern" || true)
+    else
+      hits=$(git --no-pager diff -U0 "$BASE"...HEAD 2>/dev/null \
+        | grep -E '^\+' | grep -Ev '^\+\+\+' \
+        | grep -nE "$pattern" || true)
+    fi
   else
     hits=$(git grep -nE "$pattern" -- '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' 2>/dev/null || true)
   fi
@@ -62,7 +82,7 @@ if [[ "$MODE" == "engine" ]]; then
 fi
 
 if [[ "$MODE" == "product" && -n "$PEER" ]]; then
-  scan_regex "cross-tenant-peer" "$PEER"
+  scan_regex "cross-tenant-peer" "$PEER" "${PEER_DIFF_PATHS[@]}"
 fi
 
 if [[ "$FAIL" -eq 0 ]]; then
