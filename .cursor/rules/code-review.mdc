@@ -12,7 +12,11 @@ Block on:
 1. Live customer/project data in tracked files
 2. Secrets
 3. Missing tests for new scanner behaviour
-4. Wiring docs that tell agents to **replace** product CR instead of sub-stepping
+4. Wiring docs that tell agents to **replace** product CR (isolation is a **second**
+   CI check, not a replacement for project review)
+
+Isolation findings are primarily gated by CI job `isolation (Themis)`; still fold
+leaks into Blocking issues if seen here.
 
 ## Output
 
