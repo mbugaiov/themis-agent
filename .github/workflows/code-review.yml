@@ -1,0 +1,96 @@
+name: Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  review:
+    name: review (Themis)
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Cursor CLI
+        run: |
+          curl -fsSL https://cursor.com/install | bash
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run Cursor code review
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [[ -z "${CURSOR_API_KEY:-}" ]]; then
+            cat > review.md <<'EOF'
+          ## Summary
+          Automated review cannot run — `CURSOR_API_KEY` repository secret is not configured.
+
+          ## Blocking issues
+          - Configure `CURSOR_API_KEY` under Settings → Secrets and variables → Actions before merging.
+
+          ## Suggestions
+          None.
+          EOF
+          else
+            git fetch origin "${BASE}" --quiet || true
+            PROMPT="You are Themis reviewing PR #${{ github.event.pull_request.number }} on themis-agent. Follow .cursor/rules/code-review.mdc (and AGENTS.md). Review ONLY changes vs origin/${BASE}. Produce ## Summary, ## Blocking issues, ## Suggestions — or LGTM - no blocking issues found. Isolation is a separate CI job; still fold leak findings into Blocking issues if seen."
+            REVIEW_BIN=agent
+            command -v agent >/dev/null 2>&1 || REVIEW_BIN=cursor-agent
+            "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --output-format text -p "$PROMPT" > review.md || true
+            [[ -s review.md ]] || echo "Cursor review produced no output (see build log above)." > review.md
+          fi
+          cat review.md
+
+      - name: Blocking review gate
+        run: bash scripts/check_review_gate.sh review.md
+
+      - name: Upload review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-md
+          path: review.md
+          retention-days: 7
+
+  isolation:
+    name: isolation (Themis)
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Cursor CLI
+        run: |
+          curl -fsSL https://cursor.com/install | bash
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: isolation (Themis)
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          git fetch origin "${BASE}" --quiet || true
+          bash scripts/ci_isolation.sh --mode engine --base "origin/${BASE}"
+
+      - name: Upload isolation artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolation-review-md
+          path: isolation-review.md
+          retention-days: 7
+          if-no-files-found: ignore

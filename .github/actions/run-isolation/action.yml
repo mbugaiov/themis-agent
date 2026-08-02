@@ -1,0 +1,48 @@
+name: Run Themis isolation
+description: Deterministic isolation scan + optional LLM pass (Themis engine)
+inputs:
+  mode:
+    description: engine or product
+    required: true
+    default: engine
+  peer-pattern:
+    description: Regex of foreign tenant identifiers (product mode)
+    required: false
+    default: ""
+  base-ref:
+    description: git base ref for diff (e.g. origin/main)
+    required: false
+    default: origin/main
+  cursor-api-key:
+    description: Optional CURSOR_API_KEY for LLM isolation pass
+    required: false
+    default: ""
+  no-llm:
+    description: If true, skip LLM even when key present
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Install Cursor CLI (optional LLM)
+      if: inputs.no-llm != 'true' && inputs.cursor-api-key != ''
+      shell: bash
+      run: |
+        curl -fsSL https://cursor.com/install | bash
+        echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Run isolation (Themis)
+      shell: bash
+      env:
+        CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
+      run: |
+        set -euo pipefail
+        ARGS=(--mode "${{ inputs.mode }}" --base "${{ inputs.base-ref }}")
+        if [[ -n "${{ inputs.peer-pattern }}" ]]; then
+          ARGS+=(--peer-pattern "${{ inputs.peer-pattern }}")
+        fi
+        if [[ "${{ inputs.no-llm }}" == "true" ]]; then
+          ARGS+=(--no-llm)
+        fi
+        bash "${{ github.action_path }}/../../../scripts/ci_isolation.sh" "${ARGS[@]}"
