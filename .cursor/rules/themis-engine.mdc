@@ -1,0 +1,12 @@
+---
+description: Themis isolation engine — always-on constraints
+globs: "{themis-agent/**,scripts/**,.cursor/**,docs/**,templates/**}"
+alwaysApply: true
+---
+
+# Themis engine constraints
+
+- Focus: isolation, portability, cross-tenant leakage, short secret hygiene.
+- Do not replace in-repo product CR rules.
+- No live customer project data in this repository.
+- Engine changes ship via GitHub PR on this repo.

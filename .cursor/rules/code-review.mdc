@@ -1,0 +1,23 @@
+---
+description: Automated PR review for themis-agent itself
+alwaysApply: false
+---
+
+# Themis-agent — code review
+
+Review `git --no-pager diff origin/<base>...HEAD`.
+
+Block on:
+
+1. Live customer/project data in tracked files
+2. Secrets
+3. Missing tests for new scanner behaviour
+4. Wiring docs that tell agents to **replace** product CR instead of sub-stepping
+
+## Output
+
+- `## Summary`
+- `## Blocking issues` — or `None.`
+- `## Suggestions`
+
+Or: `LGTM - no blocking issues found.`
