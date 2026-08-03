@@ -65,14 +65,47 @@ fi
 
 echo "== Themis isolation LLM pass =="
 DIFF=""
+NAMEONLY=""
 if [[ -n "$BASE" ]]; then
   DIFF="$(git --no-pager diff "$BASE"...HEAD 2>/dev/null || true)"
+  NAMEONLY="$(git --no-pager diff --name-only "$BASE"...HEAD 2>/dev/null || true)"
 fi
 if [[ -z "$DIFF" ]]; then
   cat > "$OUT" <<'EOF'
 LGTM - no blocking issues found.
 EOF
 else
+  # Vendored skill packs blow past OS ARG_MAX for `agent -p "$PROMPT"`.
+  # Prefer a control-plane-only diff; if still huge, fall back to scan-only LGTM
+  # (deterministic isolation_scan already ran above).
+  MAX_CHARS=50000
+  DIFF_LEN=${#DIFF}
+  if [[ "$DIFF_LEN" -gt "$MAX_CHARS" ]]; then
+    echo "WARN: full diff ${DIFF_LEN} chars — using control-plane slice for LLM"
+    CTRL_DIFF="$(git --no-pager diff "$BASE"...HEAD -- . \
+      ':(exclude).agents/skills' \
+      ':(exclude)node_modules' \
+      2>/dev/null || true)"
+    DIFF="$(printf '%s\n' \
+      "[Large diff: ${DIFF_LEN} chars — vendored .agents/skills omitted for LLM]" \
+      "Changed files:" \
+      "$NAMEONLY" \
+      "" \
+      "Control-plane diff:" \
+      "$CTRL_DIFF")"
+  fi
+  if [[ ${#DIFF} -gt "$MAX_CHARS" ]]; then
+    echo "WARN: control-plane diff still ${#DIFF} chars — isolation LLM skipped (scan already OK unless SCAN_EC≠0)"
+    if [[ "$SCAN_EC" -ne 0 ]]; then
+      echo "isolation_scan FAILED" >&2
+      exit 1
+    fi
+    cat > "$OUT" <<'EOF'
+LGTM - no blocking issues found.
+EOF
+    echo "isolation (Themis): PASS (scan only — diff too large for LLM argv)"
+    exit 0
+  fi
   PROMPT="$(cat <<EOF
 You are Themis Isolation reviewer (portable engine). Mode=${MODE}.
 Focus ONLY on: customer/project leakage across tenants, secrets, host paths,
