@@ -77,3 +77,7 @@ bash "$THEMIS_AGENT_PATH/scripts/isolation_scan.sh" --mode engine --root "$PWD"
 ```
 
 Primary enforcement is the **CI check** `isolation (Themis)`, not a section inside the project review comment.
+
+## 4. Follow-ups (Suggestions / Risks) before merge
+
+See [FOLLOWUPS.md](./FOLLOWUPS.md). Engines must run `check_review_followups_disposed.sh` (from this repo under `.themis-agent`) after required checks are green — in `wait_*_pipeline` and auto-merge — so Suggestions/Risks are fixed or filed as **same-repo** backlog issues.
