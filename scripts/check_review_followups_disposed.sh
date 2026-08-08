@@ -8,9 +8,11 @@
 #   THEMIS_REVIEW_MARKER
 #   THEMIS_FOLLOWUP_SECTIONS
 #   THEMIS_FOLLOWUP_DISPOSE_MARKER
+#   THEMIS_FOLLOWUP_REPO   optional owner/name (preferred over gh from this checkout)
+#   GITHUB_REPOSITORY      used in Actions when set to the *engine* repo
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+CALLER_PWD="${PWD}"
 
 PR="${1:-}"
 if [[ -z "$PR" || ! "$PR" =~ ^[0-9]+$ ]]; then
@@ -18,7 +20,14 @@ if [[ -z "$PR" || ! "$PR" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
+# Never `gh repo view` from themis-agent checkout — that would target the wrong repo.
+if [[ -n "${THEMIS_FOLLOWUP_REPO:-}" ]]; then
+  REPO="$THEMIS_FOLLOWUP_REPO"
+elif [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  REPO="$GITHUB_REPOSITORY"
+else
+  REPO="$(cd "$CALLER_PWD" && gh repo view --json nameWithOwner -q .nameWithOwner)"
+fi
 MARKER="${THEMIS_FOLLOWUP_DISPOSE_MARKER:-<!-- themis-review-followups-disposed -->}"
 
 TMP="$(mktemp)"
