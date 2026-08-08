@@ -48,13 +48,23 @@ Path(sys.argv[3]).write_text(b, encoding='utf-8')
   echo "$tmp"
 }
 
+# Resolve paths before cd into themis root so caller workspace review.md works.
+CALLER_PWD="${PWD}"
 if [[ "$SRC" == "--from-comment" ]]; then
   REVIEW_FILE="$(fetch_comment_review || true)"
   CLEANUP_TMP="$REVIEW_FILE"
-elif [[ -n "$SRC" && -f "$SRC" ]]; then
-  REVIEW_FILE="$SRC"
-elif [[ -f review.md ]]; then
-  REVIEW_FILE=review.md
+elif [[ -n "$SRC" ]]; then
+  if [[ "$SRC" = /* && -f "$SRC" ]]; then
+    REVIEW_FILE="$SRC"
+  elif [[ -f "$CALLER_PWD/$SRC" ]]; then
+    REVIEW_FILE="$CALLER_PWD/$SRC"
+  elif [[ -f "$SRC" ]]; then
+    REVIEW_FILE="$(cd "$(dirname "$SRC")" && pwd)/$(basename "$SRC")"
+  fi
+elif [[ -f "$CALLER_PWD/review.md" ]]; then
+  REVIEW_FILE="$CALLER_PWD/review.md"
+elif [[ -f "$ROOT/review.md" ]]; then
+  REVIEW_FILE="$ROOT/review.md"
 else
   REVIEW_FILE="$(fetch_comment_review || true)"
   CLEANUP_TMP="$REVIEW_FILE"
