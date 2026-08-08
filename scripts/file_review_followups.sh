@@ -17,7 +17,14 @@ if [[ -z "$PR" || ! "$PR" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-REPO="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
+# Prefer explicit engine repo — never resolve from themis-agent checkout cwd.
+if [[ -n "${THEMIS_FOLLOWUP_REPO:-}" ]]; then
+  REPO="$THEMIS_FOLLOWUP_REPO"
+elif [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  REPO="$GITHUB_REPOSITORY"
+else
+  REPO="$(cd "$CALLER_PWD" && gh repo view --json nameWithOwner -q .nameWithOwner)"
+fi
 MARKER="${THEMIS_FOLLOWUP_DISPOSE_MARKER:-<!-- themis-review-followups-disposed -->}"
 REVIEW_FILE=""
 CLEANUP_TMP=""
