@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Parse Themis/Cursor review follow-up sections (Suggestions / High priority / Risks / …).
+
+Source of truth for all dual-review engines. Engines set:
+
+  THEMIS_REVIEW_MARKER          HTML marker in the review comment
+  THEMIS_FOLLOWUP_SECTIONS      comma-separated ## titles (default below)
+  THEMIS_FOLLOWUP_DISPOSE_MARKER  disposal comment marker (shell scripts)
+
+Does not fail CI by itself — engines gate merge via check_review_followups_disposed.sh.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+
+DEFAULT_SECTIONS = (
+    "Suggestions",
+    "High priority issues",
+    "Risks",
+)
+
+ITEM_LINE = re.compile(
+    r"^\s*(?:[-*]|\d+\.)\s+(?:\*\*.*?\*\*\s*[—:-]\s*)?(.+\S)\s*$"
+)
+
+
+def section_titles() -> tuple[str, ...]:
+    raw = os.environ.get("THEMIS_FOLLOWUP_SECTIONS", "").strip()
+    if raw:
+        return tuple(s.strip() for s in raw.split(",") if s.strip())
+    return DEFAULT_SECTIONS
+
+
+def review_marker() -> str:
+    return os.environ.get(
+        "THEMIS_REVIEW_MARKER",
+        "<!-- themis-cursor-review -->",
+    ).strip() or "<!-- themis-cursor-review -->"
+
+
+def extract_section(text: str, title: str) -> str | None:
+    lines = text.split("\n")
+    in_section = False
+    body: list[str] = []
+    header = re.compile(rf"^## {re.escape(title)}\s*$", re.I)
+    for line in lines:
+        if header.match(line):
+            in_section = True
+            continue
+        if in_section and re.match(r"^## ", line):
+            break
+        if in_section:
+            body.append(line)
+    if not in_section:
+        return None
+    return "\n".join(body).strip()
+
+
+def section_is_empty(section: str | None) -> bool:
+    if section is None:
+        return True
+    if not section.strip():
+        return True
+    for line in section.split("\n"):
+        s = line.strip()
+        if not s:
+            continue
+        return bool(re.match(r"^None\.?\s*$", s, re.I))
+    return True
+
+
+def parse_items(section: str | None, kind: str) -> list[dict[str, str]]:
+    if section_is_empty(section):
+        return []
+    assert section is not None
+    items: list[dict[str, str]] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        nonlocal buf
+        if not buf:
+            return
+        text = " ".join(x.strip() for x in buf if x.strip())
+        buf = []
+        if text:
+            items.append({"kind": kind, "text": text})
+
+    for line in section.split("\n"):
+        if re.match(r"^\s*(?:[-*]|\d+\.)\s+", line):
+            flush()
+            m = ITEM_LINE.match(line)
+            buf = [m.group(1) if m else line.strip()]
+        elif buf and line.strip():
+            buf.append(line.strip())
+        elif not line.strip():
+            flush()
+    flush()
+    if not items and section.strip() and not re.match(r"^None\.?\s*$", section, re.I):
+        items.append({"kind": kind, "text": " ".join(section.split())})
+    return items
+
+
+def extract_followups(text: str, titles: tuple[str, ...] | None = None) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    for title in titles or section_titles():
+        kind = title.lower().replace(" ", "-")
+        out.extend(parse_items(extract_section(text, title), kind))
+    return out
+
+
+def fingerprint(items: list[dict[str, str]]) -> str:
+    import hashlib
+
+    blob = "\n".join(f"{i['kind']}:{i['text']}" for i in items)
+    if not blob:
+        return "empty"
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
+def fetch_latest_themis_review(
+    repo: str, pr: int, marker: str | None = None
+) -> str | None:
+    import subprocess
+
+    marker = marker or review_marker()
+    comments: list[dict] = []
+    page = 1
+    while True:
+        path = f"repos/{repo}/issues/{pr}/comments?per_page=100&page={page}"
+        raw = subprocess.check_output(["gh", "api", path], stderr=subprocess.DEVNULL)
+        batch = json.loads(raw.decode())
+        if not batch:
+            break
+        comments.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    matches = [c.get("body") or "" for c in comments if marker in (c.get("body") or "")]
+    return matches[-1] if matches else None
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(
+            "Usage: review_followups.py <review.md> [--json]\n"
+            "       review_followups.py --from-pr <PR> --repo owner/name [--json]\n"
+            "Env: THEMIS_REVIEW_MARKER, THEMIS_FOLLOWUP_SECTIONS",
+            file=sys.stderr,
+        )
+        return 2
+    as_json = "--json" in sys.argv
+    if sys.argv[1] == "--from-pr":
+        if len(sys.argv) < 3:
+            return 2
+        pr = int(sys.argv[2])
+        repo = None
+        if "--repo" in sys.argv:
+            repo = sys.argv[sys.argv.index("--repo") + 1]
+        if not repo:
+            import subprocess
+
+            repo = (
+                subprocess.check_output(
+                    ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]
+                )
+                .decode()
+                .strip()
+            )
+        text = fetch_latest_themis_review(repo, pr) or ""
+        if not text:
+            print("NO_REVIEW", file=sys.stderr)
+            return 1
+    else:
+        path = sys.argv[1]
+        text = open(path, encoding="utf-8").read()
+    items = extract_followups(text)
+    if as_json:
+        print(
+            json.dumps(
+                {
+                    "count": len(items),
+                    "items": items,
+                    "fingerprint": fingerprint(items),
+                    "sections": list(section_titles()),
+                    "marker": review_marker(),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        if not items:
+            print("FOLLOWUPS_NONE")
+            return 0
+        for i, it in enumerate(items, 1):
+            print(f"{i}. [{it['kind']}] {it['text']}")
+        print(f"FOLLOWUPS_COUNT {len(items)}")
+        print(f"FOLLOWUPS_FP {fingerprint(items)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

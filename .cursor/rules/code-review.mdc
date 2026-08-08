@@ -35,4 +35,5 @@ Or: `LGTM - no blocking issues found.`
 | Blocking | CI fail until fixed in PR |
 | Suggestions / High priority / Risks | Must **fix in PR** or **file same-repo backlog issues** before merge |
 
-Engines should wire `wait_pr_pipeline` + `file_review_followups` (see iris-agent) so agents cannot merge with undisposed follow-ups.
+Engines wire `docs/FOLLOWUPS.md` scripts (`.themis-agent/scripts/*followups*`) into
+`wait_*_pipeline` + auto-merge. File backlog issues on the **same** GitHub repo as the PR.

@@ -24,6 +24,23 @@ else
   no "self scan should be clean"
 fi
 
+echo "== follow-ups =="
+for f in scripts/review_followups.py scripts/check_review_followups_disposed.sh \
+  scripts/file_review_followups.sh docs/FOLLOWUPS.md; do
+  have "$f"
+done
+chmod +x scripts/check_review_followups_disposed.sh scripts/file_review_followups.sh scripts/review_followups.py
+FU_NONE=$(python3 scripts/review_followups.py tests/fixtures/review-followups/none.md --json)
+echo "$FU_NONE" | grep -q '"count": 0' && ok "followups none" || no "followups none"
+FU_LGTM=$(python3 scripts/review_followups.py tests/fixtures/review-followups/none-with-lgtm.md --json)
+echo "$FU_LGTM" | grep -q '"count": 0' && ok "followups none-with-lgtm" || no "followups none-with-lgtm"
+FU_MIX=$(python3 scripts/review_followups.py tests/fixtures/review-followups/mixed.md --json)
+echo "$FU_MIX" | grep -q '"count": 4' && ok "followups mixed count=4" || no "followups mixed"
+MIX_FP=$(echo "$FU_MIX" | python3 -c 'import json,sys; print(json.load(sys.stdin)["fingerprint"])')
+[[ "$MIX_FP" == "c0b1fd20198917df" ]] && ok "followups mixed fingerprint" || no "followups fingerprint drift ($MIX_FP)"
+FU_RN=$(THEMIS_FOLLOWUP_SECTIONS='Risks,Nits' python3 scripts/review_followups.py tests/fixtures/review-followups/risks-nits.md --json)
+echo "$FU_RN" | grep -q '"count": 2' && ok "followups Risks+Nits" || no "followups Risks+Nits"
+
 echo
 echo "Result: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
