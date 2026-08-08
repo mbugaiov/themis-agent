@@ -8,7 +8,7 @@
 # Env: THEMIS_REVIEW_MARKER, THEMIS_FOLLOWUP_SECTIONS, THEMIS_FOLLOWUP_DISPOSE_MARKER
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+CALLER_PWD="${PWD}"
 
 PR="${1:-}"
 SRC="${2:-}"
@@ -48,8 +48,7 @@ Path(sys.argv[3]).write_text(b, encoding='utf-8')
   echo "$tmp"
 }
 
-# Resolve paths before cd into themis root so caller workspace review.md works.
-CALLER_PWD="${PWD}"
+# Resolve paths against caller cwd (before any cd into themis root).
 if [[ "$SRC" == "--from-comment" ]]; then
   REVIEW_FILE="$(fetch_comment_review || true)"
   CLEANUP_TMP="$REVIEW_FILE"
