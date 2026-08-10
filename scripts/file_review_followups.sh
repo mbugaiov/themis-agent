@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# File Themis follow-up sections as GitHub backlog issues on the *same* repo as the PR.
+# File Themis follow-up sections as ONE GitHub backlog issue on the *same* repo as the PR.
+# Prefer fixing all items on the source PR; when deferring, batch into a single pickup ticket
+# so Hephaestus/dev closes them together — never one issue per bullet.
 #
 # Usage:
 #   bash scripts/file_review_followups.sh <PR_NUMBER> [review.md]
@@ -110,53 +112,70 @@ EOF
   exit 0
 fi
 
-echo "Filing $COUNT follow-up issue(s) on $REPO from PR #$PR…"
-URLS=()
-for ((i=0; i<COUNT; i++)); do
-  KIND="$(echo "$JSON" | ITEM_I="$i" python3 -c 'import json,os,sys; j=json.load(sys.stdin); print(j["items"][int(os.environ["ITEM_I"])]["kind"])')"
-  TEXT="$(echo "$JSON" | ITEM_I="$i" python3 -c 'import json,os,sys; j=json.load(sys.stdin); print(j["items"][int(os.environ["ITEM_I"])]["text"])')"
-  TITLE="$(echo "$TEXT" | head -c 90 | tr '\n' ' ')"
-  [[ ${#TITLE} -ge 90 ]] && TITLE="${TITLE}…"
-  BODY_ISSUE="$(cat <<EOF
-## From Themis review on PR #${PR}
+echo "Filing ONE batched follow-up issue ($COUNT item(s)) on $REPO from PR #$PR…"
 
-**Section:** ${KIND}
+BODY_ISSUE="$(echo "$JSON" | PR="$PR" REPO="$REPO" FP="$FP" python3 -c '
+import json, os, sys
+j = json.load(sys.stdin)
+pr = os.environ["PR"]
+repo = os.environ["REPO"]
+fp = os.environ["FP"]
+count = j.get("count") or 0
+lines = [
+    f"## From Themis review on PR #{pr}",
+    "",
+    f"**Source PR:** https://github.com/{repo}/pull/{pr}",
+    f"**Fingerprint:** `{fp}`",
+    f"**Items:** {count}",
+    "",
+    "Fix **all** checklist items in **one** follow-up PR (do not open one PR per bullet).",
+    "",
+    "### Checklist",
+    "",
+]
+for it in j.get("items") or []:
+    kind = (it.get("kind") or "Follow-up").strip()
+    text = (it.get("text") or "").strip().replace("\r\n", "\n")
+    parts = text.split("\n", 1)
+    head = parts[0].strip() or "(empty)"
+    lines.append(f"- [ ] **{kind}:** {head}")
+    if len(parts) > 1 and parts[1].strip():
+        for ln in parts[1].strip().split("\n"):
+            lines.append(f"  {ln}")
+    lines.append("")
+lines.extend([
+    "---",
+    "",
+    "Filed by themis-agent `file_review_followups.sh` (batched) — pick up via `themis-followup` / `backlog`.",
+])
+print("\n".join(lines))
+')"
 
-${TEXT}
+TITLE="Themis follow-ups (PR #${PR}): ${COUNT} items — fix together in one PR"
 
-**Source PR:** https://github.com/${REPO}/pull/${PR}
-
-Filed by themis-agent \`file_review_followups.sh\` — pick up from this repo backlog.
-EOF
-)"
-  if ! ISSUE_URL="$(gh issue create -R "$REPO" \
-    --title "Themis follow-up (PR #${PR}): ${TITLE}" \
-    --label "themis-followup" --label "backlog" \
-    --body "$BODY_ISSUE" 2>/dev/null)"; then
-    ISSUE_URL="$(gh issue create -R "$REPO" \
-      --title "Themis follow-up (PR #${PR}): ${TITLE}" \
-      --body "$BODY_ISSUE")"
-  fi
-  ISSUE_URL="$(echo "$ISSUE_URL" | tr -d '\r' | tail -1)"
-  URLS+=("$ISSUE_URL")
-  echo "  $KIND → $ISSUE_URL"
-done
-
-LIST=""
-for u in "${URLS[@]}"; do
-  LIST+="- $u"$'\n'
-done
+if ! ISSUE_URL="$(gh issue create -R "$REPO" \
+  --title "$TITLE" \
+  --label "themis-followup" --label "backlog" \
+  --body "$BODY_ISSUE" 2>/dev/null)"; then
+  ISSUE_URL="$(gh issue create -R "$REPO" \
+    --title "$TITLE" \
+    --body "$BODY_ISSUE")"
+fi
+ISSUE_URL="$(echo "$ISSUE_URL" | tr -d '\r' | tail -1)"
+echo "  batched → $ISSUE_URL"
 
 gh api "repos/${REPO}/issues/${PR}/comments" -f body="$(cat <<EOF
 ${MARKER}
 <!-- fingerprint=${FP} -->
 ## Themis follow-ups disposed
 
-Follow-ups from review were filed as backlog issues (not fixed in this PR):
+Follow-ups from review were filed as **one** backlog issue (not fixed in this PR).
+Pick up and fix **all** checklist items in a **single** PR:
 
-${LIST}
-Pick up via label \`themis-followup\` / \`backlog\`.
+- ${ISSUE_URL}
+
+Label: \`themis-followup\` / \`backlog\`.
 EOF
 )" >/dev/null
 
-echo "FOLLOWUPS_FILED count=$COUNT fingerprint=$FP"
+echo "FOLLOWUPS_FILED count=$COUNT issues=1 fingerprint=$FP url=$ISSUE_URL"

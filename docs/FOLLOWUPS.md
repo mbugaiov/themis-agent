@@ -9,6 +9,10 @@ Shared merge gate for all dual-review engines.
 | **Blocking issues** | CI fail until fixed in the PR |
 | **Suggestions / High priority / Risks / Nits** (configurable) | Must **fix in PR** or **file same-repo** GitHub issues before merge |
 
+**Preferred:** fix every follow-up on the **same** source PR before merge (no filing).
+
+**If deferring:** `file_review_followups.sh` opens **one** batched backlog issue with a checklist of all items. Factory pickup must close that checklist in **one** follow-up PR — never one issue/PR per bullet.
+
 Issues are always created on the **PR’s repository** (not a central Iris inbox).
 
 ## Scripts (this repo)

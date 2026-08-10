@@ -40,6 +40,13 @@ MIX_FP=$(echo "$FU_MIX" | python3 -c 'import json,sys; print(json.load(sys.stdin
 [[ "$MIX_FP" == "c0b1fd20198917df" ]] && ok "followups mixed fingerprint" || no "followups fingerprint drift ($MIX_FP)"
 FU_RN=$(THEMIS_FOLLOWUP_SECTIONS='Risks,Nits' python3 scripts/review_followups.py tests/fixtures/review-followups/risks-nits.md --json)
 echo "$FU_RN" | grep -q '"count": 2' && ok "followups Risks+Nits" || no "followups Risks+Nits"
+grep -q 'ONE batched follow-up issue' scripts/file_review_followups.sh \
+  && grep -q 'fix together in one PR' scripts/file_review_followups.sh \
+  && ok "followups file as one batched issue" \
+  || no "followups batch filing policy missing from file_review_followups.sh"
+grep -qE 'one\*?\*? batched backlog issue|batched backlog issue' docs/FOLLOWUPS.md \
+  && ok "FOLLOWUPS.md batch policy" \
+  || no "FOLLOWUPS.md batch policy"
 
 echo
 echo "Result: $PASS passed, $FAIL failed"
