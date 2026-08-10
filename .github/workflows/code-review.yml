@@ -24,11 +24,15 @@ jobs:
         with:
           path: |
             ~/.local/bin
+            ~/.local/share/cursor-agent
             ~/.cursor/bin
           key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
-        if: steps.cache-cursor.outputs.cache-hit != 'true'
         run: |
+          if [[ "${{ steps.cache-cursor.outputs.cache-hit }}" == "true" ]] && command -v cursor-agent >/dev/null 2>&1; then
+            echo "cursor-agent ready (cache)"
+            exit 0
+          fi
           curl -fsSL https://cursor.com/install | bash
       - name: Add Cursor CLI to PATH
         run: |
@@ -126,11 +130,15 @@ jobs:
         with:
           path: |
             ~/.local/bin
+            ~/.local/share/cursor-agent
             ~/.cursor/bin
           key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
-        if: steps.cache-cursor.outputs.cache-hit != 'true'
         run: |
+          if [[ "${{ steps.cache-cursor.outputs.cache-hit }}" == "true" ]] && command -v cursor-agent >/dev/null 2>&1; then
+            echo "cursor-agent ready (cache)"
+            exit 0
+          fi
           curl -fsSL https://cursor.com/install | bash
       - name: Add Cursor CLI to PATH
         run: |
