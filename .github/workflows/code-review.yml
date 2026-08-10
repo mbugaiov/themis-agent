@@ -24,7 +24,7 @@ jobs:
         with:
           path: |
             ~/.local/bin
-            ~/.cursor
+            ~/.cursor/bin
           key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
         if: steps.cache-cursor.outputs.cache-hit != 'true'
@@ -126,7 +126,7 @@ jobs:
         with:
           path: |
             ~/.local/bin
-            ~/.cursor
+            ~/.cursor/bin
           key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
         if: steps.cache-cursor.outputs.cache-hit != 'true'
