@@ -57,15 +57,20 @@ scan_regex() {
     if [[ ${#diff_paths[@]} -gt 0 ]]; then
       hits=$(git --no-pager diff -U0 "$BASE"...HEAD -- "${diff_paths[@]}" 2>/dev/null \
         | grep -E '^\+' | grep -Ev '^\+\+\+' \
-        | grep -Ev -- '--peer-pattern|THEMIS_PEER' \
+        | grep -Ev -- '--peer-pattern|THEMIS_PEER|scripts/isolation_scan\.sh' \
         | grep -nE "$pattern" || true)
     else
       hits=$(git --no-pager diff -U0 "$BASE"...HEAD 2>/dev/null \
         | grep -E '^\+' | grep -Ev '^\+\+\+' \
+        | grep -Ev -- 'scripts/isolation_scan\.sh' \
         | grep -nE "$pattern" || true)
     fi
   else
-    hits=$(git grep -nE "$pattern" -- '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' 2>/dev/null || true)
+    # Exclude this scanner — its own SECRET/HOSTPATH literals match the patterns.
+    hits=$(git grep -nE "$pattern" -- \
+      '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' \
+      ':(exclude)scripts/isolation_scan.sh' \
+      2>/dev/null || true)
   fi
   if [[ -n "$hits" ]]; then
     echo "isolation ($label):"
