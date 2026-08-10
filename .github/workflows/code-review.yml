@@ -18,9 +18,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache Cursor CLI
+        id: cache-cursor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin
+            ~/.cursor
+          key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
+        if: steps.cache-cursor.outputs.cache-hit != 'true'
         run: |
           curl -fsSL https://cursor.com/install | bash
+      - name: Add Cursor CLI to PATH
+        run: |
           echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
@@ -61,6 +72,43 @@ jobs:
           path: review.md
           retention-days: 7
 
+      - name: Post review comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '';
+            try {
+              body = fs.readFileSync('review.md', 'utf8');
+            } catch (e) {
+              body = '_Review output unavailable._';
+            }
+            const marker = '<!-- themis-cursor-review -->';
+            const full = `${marker}\n## Themis automated review\n\n${body}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: full,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: full,
+              });
+            }
+
   isolation:
     name: isolation (Themis)
     if: github.event.pull_request.draft == false
@@ -72,9 +120,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache Cursor CLI
+        id: cache-cursor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/bin
+            ~/.cursor
+          key: cursor-cli-${{ runner.os }}-v1
       - name: Install Cursor CLI
+        if: steps.cache-cursor.outputs.cache-hit != 'true'
         run: |
           curl -fsSL https://cursor.com/install | bash
+      - name: Add Cursor CLI to PATH
+        run: |
           echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 

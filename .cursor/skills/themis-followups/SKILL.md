@@ -1,11 +1,17 @@
 ---
 name: themis-followups
-description: Dispose Themis Suggestions/Risks before merge — fix in PR or file same-repo backlog.
+description: >-
+  Dispose Themis Suggestions/Risks before merge — prefer fix on the same PR;
+  if deferring, file one batched same-repo backlog issue and fix together in one pickup PR.
 ---
 
 # Themis follow-ups
 
 See [docs/FOLLOWUPS.md](../../../docs/FOLLOWUPS.md).
+
+**Preferred:** fix every follow-up on the source PR (sections `None.` / LGTM).
+
+**If deferring:** `file_review_followups.sh` opens **one** checklist issue — factory pickup closes all items in **one** PR (never one issue/PR per bullet).
 
 ```bash
 # After Themis green — either sections are None, or:

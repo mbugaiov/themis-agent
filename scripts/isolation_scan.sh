@@ -65,7 +65,11 @@ scan_regex() {
         | grep -nE "$pattern" || true)
     fi
   else
-    hits=$(git grep -nE "$pattern" -- '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' 2>/dev/null || true)
+    # Exclude this scanner — its own SECRET/HOSTPATH literals match the patterns.
+    hits=$(git grep -nE "$pattern" -- \
+      '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' \
+      ':(exclude)scripts/isolation_scan.sh' \
+      2>/dev/null || true)
   fi
   if [[ -n "$hits" ]]; then
     echo "isolation ($label):"

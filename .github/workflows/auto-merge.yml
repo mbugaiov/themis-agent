@@ -1,0 +1,134 @@
+name: Auto-merge when green
+
+on:
+  workflow_run:
+    workflows: [CI, "Code Review"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  issues: read
+
+jobs:
+  auto-merge:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    steps:
+      - name: Resolve PR
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const prs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${run.head_branch}`,
+              per_page: 1,
+            });
+            if (prs.data.length === 0) {
+              core.info('No open PR for branch — skip');
+              core.setOutput('skip', 'true');
+              return;
+            }
+
+            const pr = (
+              await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: prs.data[0].number,
+              })
+            ).data;
+            if (pr.draft) {
+              core.info('Draft PR — skip auto-merge');
+              core.setOutput('skip', 'true');
+              return;
+            }
+            if (pr.head.sha !== run.head_sha) {
+              core.info(
+                `PR head ${pr.head.sha} !== run head ${run.head_sha} — skip`,
+              );
+              core.setOutput('skip', 'true');
+              return;
+            }
+
+            const required = ['test', 'review (Themis)', 'isolation (Themis)'];
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: run.head_sha,
+              per_page: 100,
+            });
+
+            const byName = new Map();
+            for (const c of checks.check_runs) {
+              const prev = byName.get(c.name);
+              if (!prev || (c.completed_at ?? '') > (prev.completed_at ?? '')) {
+                byName.set(c.name, c);
+              }
+            }
+            for (const name of required) {
+              const check = byName.get(name);
+              if (!check || check.conclusion !== 'success') {
+                core.info(
+                  `Required check "${name}" not success yet (${check?.conclusion ?? 'missing'}) — skip`,
+                );
+                core.setOutput('skip', 'true');
+                return;
+              }
+            }
+
+            core.setOutput('skip', 'false');
+            core.setOutput('number', String(pr.number));
+            core.setOutput('sha', run.head_sha);
+
+      # Trusted refs only — never checkout PR head with a write-capable token.
+      # this repo IS themis-agent; follow-up scripts live here (no nested pin checkout).
+      - name: Checkout default branch (trusted scripts)
+        if: steps.pr.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Require Themis Suggestions/Risks disposed
+        if: steps.pr.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          THEMIS_REVIEW_MARKER: "<!-- themis-cursor-review -->"
+          THEMIS_FOLLOWUP_DISPOSE_MARKER: "<!-- themis-review-followups-disposed -->"
+          THEMIS_FOLLOWUP_SECTIONS: "Suggestions,High priority issues,Risks"
+        run: bash scripts/check_review_followups_disposed.sh "${{ steps.pr.outputs.number }}"
+
+      - name: Merge PR
+        if: steps.pr.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = Number('${{ steps.pr.outputs.number }}');
+            const sha = '${{ steps.pr.outputs.sha }}';
+            try {
+              await github.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number,
+                merge_method: 'squash',
+                sha,
+              });
+              core.info(`Auto-merged PR #${pull_number} (squash) at ${sha}`);
+            } catch (err) {
+              if (err.status === 405 || err.status === 409) {
+                core.info(`PR #${pull_number} already merged or not mergeable`);
+                return;
+              }
+              throw err;
+            }

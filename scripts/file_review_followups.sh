@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # File Themis follow-up sections as ONE GitHub backlog issue on the *same* repo as the PR.
 # Prefer fixing all items on the source PR; when deferring, batch into a single pickup ticket
-# so Hephaestus/dev closes them together — never one issue per bullet.
+# so factory pickup closes them together — never one issue per bullet.
 #
 # Usage:
 #   bash scripts/file_review_followups.sh <PR_NUMBER> [review.md]
@@ -151,7 +151,8 @@ lines.extend([
 print("\n".join(lines))
 ')"
 
-TITLE="Themis follow-ups (PR #${PR}): ${COUNT} items — fix together in one PR"
+TITLE_COUNT="$([[ "$COUNT" -eq 1 ]] && echo '1 item' || echo "${COUNT} items")"
+TITLE="Themis follow-ups (PR #${PR}): ${TITLE_COUNT} — fix together in one PR"
 
 if ! ISSUE_URL="$(gh issue create -R "$REPO" \
   --title "$TITLE" \
