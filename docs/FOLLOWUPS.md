@@ -21,7 +21,7 @@ Issues are always created on the **PR’s repository** (not a central Iris inbox
 |--------|------|
 | `scripts/review_followups.py` | Parse follow-up sections + fingerprint |
 | `scripts/check_review_followups_disposed.sh` | Fail if open items lack disposal comment |
-| `scripts/file_review_followups.sh` | File issues + post disposal marker |
+| `scripts/file_review_followups.sh` | File **one** batched backlog issue + post disposal marker |
 
 ## Engine wiring
 
