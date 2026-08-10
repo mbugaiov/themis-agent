@@ -48,9 +48,15 @@ grep -q 'ONE batched follow-up issue' scripts/file_review_followups.sh \
 grep -qE 'one\*?\*? batched backlog issue|batched backlog issue' docs/FOLLOWUPS.md \
   && ok "FOLLOWUPS.md batch policy" \
   || no "FOLLOWUPS.md batch policy"
+grep -q 'product / MVP' docs/FOLLOWUPS.md \
+  && grep -q 'Comment-only' docs/FOLLOWUPS.md \
+  && ok "FOLLOWUPS.md product Risks-only / Nits comment-only" \
+  || no "FOLLOWUPS.md missing Risks-only product policy"
 grep -q 'one batched' .cursor/skills/themis-followups/SKILL.md \
   && ok "themis-followups SKILL batch policy" \
   || no "themis-followups SKILL batch policy"
+FU_RISKS_ONLY=$(THEMIS_FOLLOWUP_SECTIONS='Risks' python3 scripts/review_followups.py tests/fixtures/review-followups/risks-nits.md --json)
+echo "$FU_RISKS_ONLY" | grep -q '"count": 1' && ok "followups Risks-only ignores Nits" || no "followups Risks-only should count=1"
 have ".github/workflows/auto-merge.yml"
 have ".github/workflows/ci.yml"
 grep -q 'Post review comment' .github/workflows/code-review.yml \
