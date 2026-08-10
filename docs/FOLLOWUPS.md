@@ -22,7 +22,7 @@ Issues are always created on the **PR’s repository** (not a central Iris inbox
 
 | Repo type | Sections | Why |
 |-----------|----------|-----|
-| **Product / MVP** (e.g. intown-suits) | `Risks` only | Nits are polish noise; keep backlog for correctness/security |
+| **Product / MVP** | `Risks` only | Nits are polish noise; keep backlog for correctness/security |
 | **Engine self-review** | `Suggestions,High priority issues,Risks` | Engines may still track Suggestions |
 | Legacy / explicit polish pass | `Risks,Nits` | Only when intentionally farming nits |
 
