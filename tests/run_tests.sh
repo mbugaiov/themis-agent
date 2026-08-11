@@ -24,6 +24,46 @@ else
   no "self scan should be clean"
 fi
 
+echo "== isolation pathspec exclude (not line-grep) =="
+ISO_TMP=$(mktemp -d)
+cleanup_iso() { rm -rf "$ISO_TMP"; }
+trap cleanup_iso EXIT
+(
+  cd "$ISO_TMP"
+  git init -q
+  git config user.email "test@example.com"
+  git config user.name "test"
+  echo base > README
+  git add README && git commit -qm base
+  # (1) Secret outside the scanner must still flag.
+  printf '%s\n' 'token=ghp_abcdefghijklmnopqrstuvwxyz12' > app.env
+  # (2) Line mentions isolation_scan.sh *and* a host path — must NOT be dropped.
+  printf '%s\n' 'note scripts/isolation_scan.sh path=/Users/ci/Downloads/secret-data' > notes.txt
+  git add app.env notes.txt && git commit -qm leaks
+)
+ISO_OUT=$(bash scripts/isolation_scan.sh --mode engine --root "$ISO_TMP" --base HEAD~1 2>&1 || true)
+[[ "$ISO_OUT" == *'isolation (secrets):'* ]] \
+  && [[ "$ISO_OUT" == *'isolation (host-paths):'* ]] \
+  && [[ "$ISO_OUT" == *Downloads* || "$ISO_OUT" == *notes.txt* ]] \
+  && ok "isolation --base flags secret+hostpath (keeps isolation_scan.sh mention lines)" \
+  || no "isolation --base pathspec exclude regression"
+# Scanner-only SECRET= edit must stay excluded (pathspec), not via line filter.
+(
+  cd "$ISO_TMP"
+  git checkout -q -b scanner-only
+  mkdir -p scripts
+  # Minimal stand-in; real exclude is by path name.
+  printf '%s\n' "SECRET='(ATATT3|ghp_abcdefghijklmnopqrstuvwxyz12)'" > scripts/isolation_scan.sh
+  git add scripts/isolation_scan.sh && git commit -qm 'scanner literals only'
+)
+if bash scripts/isolation_scan.sh --mode engine --root "$ISO_TMP" --base HEAD~1 >/dev/null 2>&1; then
+  ok "isolation excludes scripts/isolation_scan.sh via pathspec"
+else
+  no "isolation should not flag scanner-only SECRET= path"
+fi
+rm -rf "$ISO_TMP"
+trap - EXIT
+
 echo "== follow-ups =="
 # Ignore caller/product engine env so defaults match fixtures / fingerprints.
 unset THEMIS_FOLLOWUP_SECTIONS THEMIS_REVIEW_MARKER THEMIS_FOLLOWUP_DISPOSE_MARKER
@@ -48,15 +88,16 @@ grep -q 'ONE batched follow-up issue' scripts/file_review_followups.sh \
   && ok "followups file as one batched issue" \
   || no "followups batch filing policy missing from file_review_followups.sh"
 # Unit-check generated issue body (no gh) — one checklist issue for all items.
+# Use [[ ]] not echo|grep -q: with bash -e + pipefail, grep -q closes early → SIGPIPE.
 BODY_MIX=$(python3 scripts/review_followups.py tests/fixtures/review-followups/mixed.md \
   --issue-body --pr 42 --repo owner/demo)
 CHECK_N=$(printf '%s\n' "$BODY_MIX" | grep -cE '^- \[ \] \*\*' || true)
-echo "$BODY_MIX" | grep -q 'Fix \*\*all\*\* checklist items in \*\*one\*\* follow-up PR' \
-  && echo "$BODY_MIX" | grep -q 'do not open one PR per bullet' \
-  && echo "$BODY_MIX" | grep -q '### Checklist' \
-  && echo "$BODY_MIX" | grep -q "\*\*Items:\*\* 4" \
-  && echo "$BODY_MIX" | grep -q "\*\*Fingerprint:\*\* \`$MIX_FP\`" \
-  && echo "$BODY_MIX" | grep -q 'file_review_followups.sh` (batched)' \
+[[ "$BODY_MIX" == *'Fix **all** checklist items in **one** follow-up PR'* ]] \
+  && [[ "$BODY_MIX" == *'do not open one PR per bullet'* ]] \
+  && [[ "$BODY_MIX" == *'### Checklist'* ]] \
+  && [[ "$BODY_MIX" == *'**Items:** 4'* ]] \
+  && [[ "$BODY_MIX" == *"**Fingerprint:** \`$MIX_FP\`"* ]] \
+  && [[ "$BODY_MIX" == *'file_review_followups.sh` (batched)'* ]] \
   && [[ "$CHECK_N" -eq 4 ]] \
   && ok "followups issue body one-checklist contract" \
   || no "followups issue body contract broken (checkboxes=$CHECK_N)"

@@ -144,13 +144,9 @@ def format_batched_issue_body(
     ]
     for it in items:
         kind = (it.get("kind") or "Follow-up").strip()
-        text = (it.get("text") or "").strip().replace("\r\n", "\n")
-        parts = text.split("\n", 1)
-        head = parts[0].strip() or "(empty)"
-        lines.append(f"- [ ] **{kind}:** {head}")
-        if len(parts) > 1 and parts[1].strip():
-            for ln in parts[1].strip().split("\n"):
-                lines.append(f"  {ln}")
+        # parse_items joins wrapped bullets with spaces — one checklist line per item.
+        text = " ".join((it.get("text") or "").split()) or "(empty)"
+        lines.append(f"- [ ] **{kind}:** {text}")
         lines.append("")
     lines.extend(
         [
@@ -201,10 +197,20 @@ def main() -> int:
         return 2
     issue_pr = None
     issue_repo = None
-    if "--pr" in sys.argv:
-        issue_pr = sys.argv[sys.argv.index("--pr") + 1]
-    if "--repo" in sys.argv:
-        issue_repo = sys.argv[sys.argv.index("--repo") + 1]
+
+    def _flag_value(flag: str) -> str | None:
+        if flag not in sys.argv:
+            return None
+        i = sys.argv.index(flag)
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("-"):
+            print(f"{flag} requires a value", file=sys.stderr)
+            return ""
+        return sys.argv[i + 1]
+
+    issue_pr = _flag_value("--pr")
+    issue_repo = _flag_value("--repo")
+    if issue_pr == "" or issue_repo == "":
+        return 2
     if sys.argv[1] == "--from-pr":
         if len(sys.argv) < 3:
             return 2
