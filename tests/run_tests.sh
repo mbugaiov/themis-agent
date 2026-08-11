@@ -25,6 +25,8 @@ else
 fi
 
 echo "== follow-ups =="
+# Ignore caller/product engine env so defaults match fixtures / fingerprints.
+unset THEMIS_FOLLOWUP_SECTIONS THEMIS_REVIEW_MARKER THEMIS_FOLLOWUP_DISPOSE_MARKER
 for f in scripts/review_followups.py scripts/check_review_followups_disposed.sh \
   scripts/file_review_followups.sh docs/FOLLOWUPS.md; do
   have "$f"
@@ -45,6 +47,19 @@ grep -q 'ONE batched follow-up issue' scripts/file_review_followups.sh \
   && grep -q '1 item' scripts/file_review_followups.sh \
   && ok "followups file as one batched issue" \
   || no "followups batch filing policy missing from file_review_followups.sh"
+# Unit-check generated issue body (no gh) — one checklist issue for all items.
+BODY_MIX=$(python3 scripts/review_followups.py tests/fixtures/review-followups/mixed.md \
+  --issue-body --pr 42 --repo owner/demo)
+CHECK_N=$(printf '%s\n' "$BODY_MIX" | grep -cE '^- \[ \] \*\*' || true)
+echo "$BODY_MIX" | grep -q 'Fix \*\*all\*\* checklist items in \*\*one\*\* follow-up PR' \
+  && echo "$BODY_MIX" | grep -q 'do not open one PR per bullet' \
+  && echo "$BODY_MIX" | grep -q '### Checklist' \
+  && echo "$BODY_MIX" | grep -q "\*\*Items:\*\* 4" \
+  && echo "$BODY_MIX" | grep -q "\*\*Fingerprint:\*\* \`$MIX_FP\`" \
+  && echo "$BODY_MIX" | grep -q 'file_review_followups.sh` (batched)' \
+  && [[ "$CHECK_N" -eq 4 ]] \
+  && ok "followups issue body one-checklist contract" \
+  || no "followups issue body contract broken (checkboxes=$CHECK_N)"
 grep -qE 'one\*?\*? batched backlog issue|batched backlog issue' docs/FOLLOWUPS.md \
   && ok "FOLLOWUPS.md batch policy" \
   || no "FOLLOWUPS.md batch policy"

@@ -127,8 +127,23 @@ jobs:
               });
               core.info(`Auto-merged PR #${pull_number} (squash) at ${sha}`);
             } catch (err) {
+              // Soft-skip ONLY already-merged races (405/409 after another job won).
+              // Branch protection / conflicts / not-mergeable must fail the job.
               if (err.status === 405 || err.status === 409) {
-                core.info(`PR #${pull_number} already merged or not mergeable`);
+                const latest = (
+                  await github.rest.pulls.get({ owner, repo, pull_number })
+                ).data;
+                if (latest.merged) {
+                  core.info(
+                    `PR #${pull_number} already merged — soft skip (merge race)`,
+                  );
+                  return;
+                }
+                core.setFailed(
+                  `PR #${pull_number} not mergeable (HTTP ${err.status}): ${err.message}. ` +
+                    `Soft-skip is only for already-merged races; refusing to treat ` +
+                    `branch-protection / conflict / not-mergeable as success.`,
+                );
                 return;
               }
               throw err;

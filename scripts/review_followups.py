@@ -120,6 +120,48 @@ def fingerprint(items: list[dict[str, str]]) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
+def format_batched_issue_body(
+    items: list[dict[str, str]],
+    *,
+    pr: str | int,
+    repo: str,
+    fp: str | None = None,
+) -> str:
+    """One backlog issue body: single checklist for all gated follow-ups."""
+    count = len(items)
+    fp = fp if fp is not None else fingerprint(items)
+    lines = [
+        f"## From Themis review on PR #{pr}",
+        "",
+        f"**Source PR:** https://github.com/{repo}/pull/{pr}",
+        f"**Fingerprint:** `{fp}`",
+        f"**Items:** {count}",
+        "",
+        "Fix **all** checklist items in **one** follow-up PR (do not open one PR per bullet).",
+        "",
+        "### Checklist",
+        "",
+    ]
+    for it in items:
+        kind = (it.get("kind") or "Follow-up").strip()
+        text = (it.get("text") or "").strip().replace("\r\n", "\n")
+        parts = text.split("\n", 1)
+        head = parts[0].strip() or "(empty)"
+        lines.append(f"- [ ] **{kind}:** {head}")
+        if len(parts) > 1 and parts[1].strip():
+            for ln in parts[1].strip().split("\n"):
+                lines.append(f"  {ln}")
+        lines.append("")
+    lines.extend(
+        [
+            "---",
+            "",
+            "Filed by themis-agent `file_review_followups.sh` (batched) — pick up via `themis-followup` / `backlog`.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def fetch_latest_themis_review(
     repo: str, pr: int, marker: str | None = None
 ) -> str | None:
@@ -145,20 +187,29 @@ def fetch_latest_themis_review(
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print(
-            "Usage: review_followups.py <review.md> [--json]\n"
-            "       review_followups.py --from-pr <PR> --repo owner/name [--json]\n"
+            "Usage: review_followups.py <review.md> [--json|--issue-body]\n"
+            "       review_followups.py --from-pr <PR> --repo owner/name [--json|--issue-body]\n"
+            "       --issue-body requires --pr N --repo owner/name (renders one batched checklist)\n"
             "Env: THEMIS_REVIEW_MARKER, THEMIS_FOLLOWUP_SECTIONS",
             file=sys.stderr,
         )
         return 2
     as_json = "--json" in sys.argv
+    as_issue_body = "--issue-body" in sys.argv
+    if as_json and as_issue_body:
+        print("Use only one of --json / --issue-body", file=sys.stderr)
+        return 2
+    issue_pr = None
+    issue_repo = None
+    if "--pr" in sys.argv:
+        issue_pr = sys.argv[sys.argv.index("--pr") + 1]
+    if "--repo" in sys.argv:
+        issue_repo = sys.argv[sys.argv.index("--repo") + 1]
     if sys.argv[1] == "--from-pr":
         if len(sys.argv) < 3:
             return 2
         pr = int(sys.argv[2])
-        repo = None
-        if "--repo" in sys.argv:
-            repo = sys.argv[sys.argv.index("--repo") + 1]
+        repo = issue_repo
         if not repo:
             import subprocess
 
@@ -169,6 +220,8 @@ def main() -> int:
                 .decode()
                 .strip()
             )
+        issue_pr = issue_pr or str(pr)
+        issue_repo = repo
         text = fetch_latest_themis_review(repo, pr) or ""
         if not text:
             print("NO_REVIEW", file=sys.stderr)
@@ -177,7 +230,12 @@ def main() -> int:
         path = sys.argv[1]
         text = open(path, encoding="utf-8").read()
     items = extract_followups(text)
-    if as_json:
+    if as_issue_body:
+        if not issue_pr or not issue_repo:
+            print("--issue-body requires --pr N and --repo owner/name", file=sys.stderr)
+            return 2
+        print(format_batched_issue_body(items, pr=issue_pr, repo=issue_repo))
+    elif as_json:
         print(
             json.dumps(
                 {

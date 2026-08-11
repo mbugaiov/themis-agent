@@ -114,42 +114,8 @@ fi
 
 echo "Filing ONE batched follow-up issue ($COUNT item(s)) on $REPO from PR #$PR…"
 
-BODY_ISSUE="$(echo "$JSON" | PR="$PR" REPO="$REPO" FP="$FP" python3 -c '
-import json, os, sys
-j = json.load(sys.stdin)
-pr = os.environ["PR"]
-repo = os.environ["REPO"]
-fp = os.environ["FP"]
-count = j.get("count") or 0
-lines = [
-    f"## From Themis review on PR #{pr}",
-    "",
-    f"**Source PR:** https://github.com/{repo}/pull/{pr}",
-    f"**Fingerprint:** `{fp}`",
-    f"**Items:** {count}",
-    "",
-    "Fix **all** checklist items in **one** follow-up PR (do not open one PR per bullet).",
-    "",
-    "### Checklist",
-    "",
-]
-for it in j.get("items") or []:
-    kind = (it.get("kind") or "Follow-up").strip()
-    text = (it.get("text") or "").strip().replace("\r\n", "\n")
-    parts = text.split("\n", 1)
-    head = parts[0].strip() or "(empty)"
-    lines.append(f"- [ ] **{kind}:** {head}")
-    if len(parts) > 1 and parts[1].strip():
-        for ln in parts[1].strip().split("\n"):
-            lines.append(f"  {ln}")
-    lines.append("")
-lines.extend([
-    "---",
-    "",
-    "Filed by themis-agent `file_review_followups.sh` (batched) — pick up via `themis-followup` / `backlog`.",
-])
-print("\n".join(lines))
-')"
+BODY_ISSUE="$(python3 "$ROOT/scripts/review_followups.py" "$REVIEW_FILE" \
+  --issue-body --pr "$PR" --repo "$REPO")"
 
 TITLE_COUNT="$([[ "$COUNT" -eq 1 ]] && echo '1 item' || echo "${COUNT} items")"
 TITLE="Themis follow-ups (PR #${PR}): ${TITLE_COUNT} — fix together in one PR"
