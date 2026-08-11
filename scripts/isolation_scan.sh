@@ -39,6 +39,14 @@ HOSTPATH='(/Users/[A-Za-z0-9._-]+/(Downloads|projects)/|/home/[A-Za-z0-9._-]+/)'
 ENGINE_LEAK='(\bepic_key:\s*[\"'\'']?[A-Z]+-[0-9]+|/rest/agile/1\.0/board/[0-9]+)'
 
 FAIL=0
+# Exclude this scanner via pathspec — its SECRET/HOSTPATH literals self-match.
+# Do not grep-drop lines containing isolation_scan.sh (misses SECRET= edits; over-excludes).
+SCANNER_EXCLUDE=':(exclude)scripts/isolation_scan.sh'
+# Default secret/hostpath/engine diffs: whole tree minus the scanner file.
+DEFAULT_DIFF_PATHS=(
+  .
+  "$SCANNER_EXCLUDE"
+)
 # Diff paths for peer/cross-tenant scans — exclude CI wiring that declares deny-lists.
 PEER_DIFF_PATHS=(
   .
@@ -46,6 +54,7 @@ PEER_DIFF_PATHS=(
   ':(exclude).github/actions/**'
   ':(exclude)bitbucket-pipelines.yml'
   ':(exclude)docs/WIRING.md'
+  "$SCANNER_EXCLUDE"
 )
 
 scan_regex() {
@@ -54,22 +63,24 @@ scan_regex() {
   local -a diff_paths=("$@")
   local hits
   if [[ -n "$BASE" ]] && git rev-parse --git-dir >/dev/null 2>&1; then
-    if [[ ${#diff_paths[@]} -gt 0 ]]; then
+    if [[ ${#diff_paths[@]} -eq 0 ]]; then
+      diff_paths=("${DEFAULT_DIFF_PATHS[@]}")
+    fi
+    # Peer scans still drop lines that only declare the peer pattern itself.
+    if [[ "$label" == "cross-tenant-peer" ]]; then
       hits=$(git --no-pager diff -U0 "$BASE"...HEAD -- "${diff_paths[@]}" 2>/dev/null \
         | grep -E '^\+' | grep -Ev '^\+\+\+' \
-        | grep -Ev -- '--peer-pattern|THEMIS_PEER|scripts/isolation_scan\.sh' \
+        | grep -Ev -- '--peer-pattern|THEMIS_PEER' \
         | grep -nE "$pattern" || true)
     else
-      hits=$(git --no-pager diff -U0 "$BASE"...HEAD 2>/dev/null \
+      hits=$(git --no-pager diff -U0 "$BASE"...HEAD -- "${diff_paths[@]}" 2>/dev/null \
         | grep -E '^\+' | grep -Ev '^\+\+\+' \
-        | grep -Ev -- 'scripts/isolation_scan\.sh' \
         | grep -nE "$pattern" || true)
     fi
   else
-    # Exclude this scanner — its own SECRET/HOSTPATH literals match the patterns.
     hits=$(git grep -nE "$pattern" -- \
       '.cursor' 'scripts' 'templates' 'docs' '*.md' '.github' \
-      ':(exclude)scripts/isolation_scan.sh' \
+      "$SCANNER_EXCLUDE" \
       2>/dev/null || true)
   fi
   if [[ -n "$hits" ]]; then
