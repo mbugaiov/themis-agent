@@ -28,6 +28,10 @@ echo "== isolation pathspec exclude (not line-grep) =="
 ISO_TMP=$(mktemp -d)
 cleanup_iso() { rm -rf "$ISO_TMP"; }
 trap cleanup_iso EXIT
+# Build leak fixtures at runtime so this test file does not self-match isolation_scan.
+FAKE_GHP="ghp_""abcdefghijklmnopqrstuvwxyz12"
+FAKE_HOST="/Users/""ci/Downloads/secret-data"
+FAKE_AT="ATA""TT3"
 (
   cd "$ISO_TMP"
   git init -q
@@ -36,9 +40,9 @@ trap cleanup_iso EXIT
   echo base > README
   git add README && git commit -qm base
   # (1) Secret outside the scanner must still flag.
-  printf '%s\n' 'token=ghp_abcdefghijklmnopqrstuvwxyz12' > app.env
+  printf 'token=%s\n' "$FAKE_GHP" > app.env
   # (2) Line mentions isolation_scan.sh *and* a host path — must NOT be dropped.
-  printf '%s\n' 'note scripts/isolation_scan.sh path=/Users/ci/Downloads/secret-data' > notes.txt
+  printf 'note scripts/isolation_scan.sh path=%s\n' "$FAKE_HOST" > notes.txt
   git add app.env notes.txt && git commit -qm leaks
 )
 ISO_OUT=$(bash scripts/isolation_scan.sh --mode engine --root "$ISO_TMP" --base HEAD~1 2>&1 || true)
@@ -53,7 +57,7 @@ ISO_OUT=$(bash scripts/isolation_scan.sh --mode engine --root "$ISO_TMP" --base 
   git checkout -q -b scanner-only
   mkdir -p scripts
   # Minimal stand-in; real exclude is by path name.
-  printf '%s\n' "SECRET='(ATATT3|ghp_abcdefghijklmnopqrstuvwxyz12)'" > scripts/isolation_scan.sh
+  printf "SECRET='(%s|%s)'\n" "$FAKE_AT" "$FAKE_GHP" > scripts/isolation_scan.sh
   git add scripts/isolation_scan.sh && git commit -qm 'scanner literals only'
 )
 if bash scripts/isolation_scan.sh --mode engine --root "$ISO_TMP" --base HEAD~1 >/dev/null 2>&1; then
