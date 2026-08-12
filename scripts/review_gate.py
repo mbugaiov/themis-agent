@@ -13,6 +13,12 @@ def is_lgtm_only(text: str) -> bool:
     return bool(trimmed) and "\n" not in trimmed and bool(LGTM_LINE.match(trimmed))
 
 
+def ends_with_lgtm(text: str) -> bool:
+    """True when the last non-empty line is LGTM (allows ### Seat started preamble)."""
+    lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
+    return bool(lines) and bool(LGTM_LINE.match(lines[-1]))
+
+
 def extract_blocking_section(text: str) -> str | None:
     lines = text.split("\n")
     in_section = False
@@ -37,12 +43,15 @@ def review_has_blockers(text: str) -> bool:
     if is_lgtm_only(trimmed):
         return False
     section = extract_blocking_section(text)
-    if section is None:
+    if section is not None:
+        if re.match(r"^None\.?\s*$", section, re.I):
+            return False
+        if not section:
+            return False
         return True
-    if re.match(r"^None\.?\s*$", section, re.I):
+    # No Blocking section: pass if the verdict line is LGTM (banner preamble OK)
+    if ends_with_lgtm(trimmed):
         return False
-    if not section:
-        return True
     return True
 
 

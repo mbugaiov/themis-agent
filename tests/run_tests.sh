@@ -17,6 +17,23 @@ for f in AGENTS.md README.md PORTABILITY.md docs/WIRING.md \
 done
 chmod +x scripts/isolation_scan.sh
 
+echo "== review gate =="
+have "scripts/review_gate.py"
+have "scripts/check_review_gate.sh"
+BANNER_LGTM=$(mktemp)
+cat > "$BANNER_LGTM" <<'EOF'
+### Themis started
+**Ticket:** engine
+**Mode:** engine
+**Doing:** isolation
+
+LGTM - no blocking issues found.
+EOF
+bash scripts/check_review_gate.sh "$BANNER_LGTM" >/dev/null \
+  && ok "review gate allows seat-started preamble before LGTM" \
+  || no "review gate must pass LGTM after ### Seat started banner"
+rm -f "$BANNER_LGTM"
+
 echo "== scan self (engine) =="
 if bash scripts/isolation_scan.sh --mode engine --root "$ROOT"; then
   ok "self scan clean"
