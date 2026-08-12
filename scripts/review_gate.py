@@ -46,8 +46,7 @@ def review_has_blockers(text: str) -> bool:
     if section is not None:
         if re.match(r"^None\.?\s*$", section, re.I):
             return False
-        if not section:
-            return False
+        # Empty / whitespace Blocking section = incomplete review → fail
         return True
     # No Blocking section: pass if the verdict line is LGTM (banner preamble OK)
     if ends_with_lgtm(trimmed):

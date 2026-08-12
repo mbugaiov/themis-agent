@@ -33,6 +33,19 @@ bash scripts/check_review_gate.sh "$BANNER_LGTM" >/dev/null \
   && ok "review gate allows seat-started preamble before LGTM" \
   || no "review gate must pass LGTM after ### Seat started banner"
 rm -f "$BANNER_LGTM"
+EMPTY_BLOCK=$(mktemp)
+cat > "$EMPTY_BLOCK" <<'EOF'
+## Summary
+x
+## Blocking issues
+
+## Suggestions
+y
+EOF
+bash scripts/check_review_gate.sh "$EMPTY_BLOCK" >/dev/null \
+  && no "empty Blocking section must fail" \
+  || ok "empty Blocking section fails gate"
+rm -f "$EMPTY_BLOCK"
 
 echo "== scan self (engine) =="
 if bash scripts/isolation_scan.sh --mode engine --root "$ROOT"; then
