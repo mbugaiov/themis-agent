@@ -59,8 +59,20 @@ def main() -> int:
     text = open(path, encoding="utf-8").read()
     if review_has_blockers(text):
         section = extract_blocking_section(text)
-        print("Review gate FAILED — blocking issues found:", file=sys.stderr)
-        if section:
+        if section is None:
+            print(
+                "Review gate FAILED — blocking issues found: "
+                "(no ## Blocking issues section and verdict is not LGTM)",
+                file=sys.stderr,
+            )
+        elif not section.strip():
+            print(
+                "Review gate FAILED — blocking issues found: "
+                "incomplete / empty Blocking section",
+                file=sys.stderr,
+            )
+        else:
+            print("Review gate FAILED — blocking issues found:", file=sys.stderr)
             print(section, file=sys.stderr)
         return 1
     print("Review gate: PASS")
