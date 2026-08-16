@@ -45,7 +45,29 @@ EOF
 bash scripts/check_review_gate.sh "$EMPTY_BLOCK" >/dev/null \
   && no "empty Blocking section must fail" \
   || ok "empty Blocking section fails gate"
+EMPTY_ERR=$(bash scripts/check_review_gate.sh "$EMPTY_BLOCK" 2>&1 >/dev/null || true)
+[[ "$EMPTY_ERR" == *"incomplete / empty Blocking section"* ]] \
+  && ok "empty Blocking stderr names incomplete section" \
+  || no "empty Blocking stderr should say incomplete / empty Blocking section"
 rm -f "$EMPTY_BLOCK"
+# LGTM after a real Blocking body (intervening ##) must not override blockers.
+LGTM_AFTER=$(mktemp)
+cat > "$LGTM_AFTER" <<'EOF'
+## Summary
+Looks fine overall.
+
+## Blocking issues
+1. Secrets leaked in tracked file.
+
+## Suggestions
+None.
+
+LGTM - no blocking issues found.
+EOF
+bash scripts/check_review_gate.sh "$LGTM_AFTER" >/dev/null \
+  && no "LGTM must not override non-empty Blocking" \
+  || ok "LGTM after blockers still fails gate"
+rm -f "$LGTM_AFTER"
 
 echo "== scan self (engine) =="
 if bash scripts/isolation_scan.sh --mode engine --root "$ROOT"; then
