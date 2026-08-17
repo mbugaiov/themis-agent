@@ -168,7 +168,11 @@ grep -q 'one batched' .cursor/skills/themis-followups/SKILL.md \
   && ok "themis-followups SKILL batch policy" \
   || no "themis-followups SKILL batch policy"
 FU_RISKS_ONLY=$(THEMIS_FOLLOWUP_SECTIONS='Risks' python3 scripts/review_followups.py tests/fixtures/review-followups/risks-nits.md --json)
-echo "$FU_RISKS_ONLY" | grep -q '"count": 1' && ok "followups Risks-only ignores Nits" || no "followups Risks-only should count=1"
+if python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.get("count")==1 else 1)' <<<"$FU_RISKS_ONLY"; then
+  ok "followups Risks-only ignores Nits"
+else
+  no "followups Risks-only should count=1"
+fi
 have ".github/workflows/auto-merge.yml"
 have ".github/workflows/ci.yml"
 grep -q 'Post review comment' .github/workflows/code-review.yml \
