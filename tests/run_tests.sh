@@ -219,9 +219,11 @@ fi
 TMP_RULE="$(mktemp "$ROOT/review-rules/99-selftest-XXXX.md")"
 echo "# selftest rule marker UNIQUE_THEMIS_RULE_PACK" >"$TMP_RULE"
 PROMPT2="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --label t --themis-root .)"
-echo "$PROMPT2" | grep -q 'UNIQUE_THEMIS_RULE_PACK' \
-  && ok "new review-rules/NN-*.md auto-included" \
-  || no "new NN-*.md must auto-include in prompt"
+if grep -q 'UNIQUE_THEMIS_RULE_PACK' <<<"$PROMPT2"; then
+  ok "new review-rules/NN-*.md auto-included"
+else
+  no "new NN-*.md must auto-include in prompt"
+fi
 rm -f "$TMP_RULE"
 have "templates/engine-code-review-block.md"
 grep -q 'review-rules/10-tests-must-have.md' templates/engine-code-review-block.md \
