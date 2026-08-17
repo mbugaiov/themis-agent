@@ -1,5 +1,7 @@
 # Shared MUST-HAVE — tests (moved)
 
+**MUST-HAVE → Blocking:** new/changed behavior without **new or updated** tests.
+
 **Canonical location:** [`../review-rules/10-tests-must-have.md`](../review-rules/10-tests-must-have.md)
 
 Engines must load the full central pack via:

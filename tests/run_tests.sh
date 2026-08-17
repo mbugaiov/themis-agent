@@ -191,25 +191,48 @@ chmod +x scripts/build_review_prompt.sh
 grep -q 'No new tests' review-rules/10-tests-must-have.md \
   && ok "10-tests-must-have has Blocking bar" \
   || no "10-tests-must-have missing bar"
+ec=0; bash scripts/build_review_prompt.sh --themis-root . >/dev/null 2> /tmp/themis-brp-pr.err || ec=$?
+[[ "$ec" -eq 2 ]] && grep -q -- '--pr' /tmp/themis-brp-pr.err \
+  && ok "builder missing --pr exits 2" \
+  || no "builder must exit 2 without --pr"
+ec=0; bash scripts/build_review_prompt.sh --pr 1 --themis-root /tmp/themis-no-rules-$$ >/dev/null 2> /tmp/themis-brp-dir.err || ec=$?
+[[ "$ec" -eq 2 ]] && grep -q 'missing review-rules' /tmp/themis-brp-dir.err \
+  && ok "builder missing review-rules/ exits 2" \
+  || no "builder must exit 2 when review-rules/ missing"
+EMPTY_RULES="$(mktemp -d)"
+mkdir -p "$EMPTY_RULES/review-rules"
+ec=0; bash scripts/build_review_prompt.sh --pr 1 --themis-root "$EMPTY_RULES" >/dev/null 2> /tmp/themis-brp-empty.err || ec=$?
+[[ "$ec" -eq 2 ]] && grep -q 'no review-rules' /tmp/themis-brp-empty.err \
+  && ok "builder zero NN-*.md exits 2" \
+  || no "builder must exit 2 with empty review-rules/"
+rm -rf "$EMPTY_RULES"
 PROMPT_OUT="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --label themis-self --themis-root . --local-rule .cursor/rules/code-review.mdc)"
-echo "$PROMPT_OUT" | grep -q 'Shared Themis review rules' \
-  && echo "$PROMPT_OUT" | grep -q '10-tests-must-have' \
-  && echo "$PROMPT_OUT" | grep -q '20-review-output' \
-  && echo "$PROMPT_OUT" | grep -q '30-change-description' \
-  && ok "build_review_prompt inlines full pack" \
-  || no "build_review_prompt must inline NN-*.md pack"
+if grep -q 'Shared Themis review rules' <<<"$PROMPT_OUT" \
+  && grep -q '10-tests-must-have' <<<"$PROMPT_OUT" \
+  && grep -q '20-review-output' <<<"$PROMPT_OUT" \
+  && grep -q '30-change-description' <<<"$PROMPT_OUT"; then
+  ok "build_review_prompt inlines full pack"
+else
+  no "build_review_prompt must inline NN-*.md pack"
+fi
 # Adding a new numbered rule must be picked up without script edits (contract).
 TMP_RULE="$(mktemp "$ROOT/review-rules/99-selftest-XXXX.md")"
 echo "# selftest rule marker UNIQUE_THEMIS_RULE_PACK" >"$TMP_RULE"
 PROMPT2="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --label t --themis-root .)"
-echo "$PROMPT2" | grep -q 'UNIQUE_THEMIS_RULE_PACK' \
-  && ok "new review-rules/NN-*.md auto-included" \
-  || no "new NN-*.md must auto-include in prompt"
+if grep -q 'UNIQUE_THEMIS_RULE_PACK' <<<"$PROMPT2"; then
+  ok "new review-rules/NN-*.md auto-included"
+else
+  no "new NN-*.md must auto-include in prompt"
+fi
 rm -f "$TMP_RULE"
 have "templates/engine-code-review-block.md"
 grep -q 'review-rules/10-tests-must-have.md' templates/engine-code-review-block.md \
-  && ok "legacy template points at review-rules" \
-  || no "legacy template must point at review-rules"
+  && grep -q 'MUST-HAVE → Blocking' templates/engine-code-review-block.md \
+  && ok "legacy template points at review-rules + Blocking bar" \
+  || no "legacy template must keep MUST-HAVE Blocking reminder"
+grep -q 'review-rules/10-tests-must-have.md' .cursor/rules/code-review.mdc \
+  && ok "code-review.mdc cites shared tests MUST-HAVE" \
+  || no "code-review.mdc must cite 10-tests-must-have"
 grep -q 'build_review_prompt.sh' docs/WIRING.md \
   && grep -q 'review-rules/' docs/WIRING.md \
   && ok "WIRING documents central pack + builder" \
