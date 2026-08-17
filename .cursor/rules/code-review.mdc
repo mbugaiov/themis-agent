@@ -7,11 +7,15 @@ alwaysApply: false
 
 Review `git --no-pager diff origin/<base>...HEAD`.
 
+**MUST-HAVE (shared):** follow `templates/engine-code-review-block.md` —
+behavior changes without **new or updated** tests = **Blocking**.
+
 Block on:
 
 1. Live customer/project data in tracked files
 2. Secrets
-3. Missing tests for new scanner behaviour
+3. Missing or stale tests for new/changed scanner, gate, or follow-up behaviour
+   (see shared template — file-exists / grep smoke alone is not enough)
 4. Wiring docs that tell agents to **replace** product CR (isolation is a **second**
    CI check, not a replacement for project review)
 
