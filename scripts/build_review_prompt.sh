@@ -5,7 +5,7 @@
 #   bash scripts/build_review_prompt.sh \
 #     --pr 12 \
 #     --base origin/main \
-#     --label kairos-agent \
+#     --label example-agent \
 #     [--local-rule .cursor/rules/code-review.mdc] \
 #     [--agents AGENTS.md] \
 #     [--themis-root .themis-agent]

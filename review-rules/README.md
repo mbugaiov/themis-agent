@@ -17,7 +17,7 @@ These files are the **portable code-review brain** for every repo that runs
 1. Add `review-rules/NN-short-name.md` (two-digit prefix for order).
 2. Open a PR on **themis-agent**; merge to `main`.
 3. Done — next `review (Themis)` on any wired repo loads it automatically.
-   No copy-paste into kairos/iris/qa/dev `code-review.mdc`.
+   No copy-paste into consumer `code-review.mdc` files.
 
 Do **not** put sibling product brand names or customer slugs in these files
 (isolation will block). Keep wording portable.
