@@ -24,7 +24,7 @@ handoffs, probes, gates, parsers, APIs):
 |-------------|-------------|
 | Pure decision / parse / classify / gate | Unit/contract test under `tests/` (vitest/node/bash assert) run by `tests/run_tests.sh` or `npm test` |
 | Shell wiring that calls a pure lib | Test the lib + smoke that wiring invokes it |
-| Product/app feature (Argus/Hephaestus path) | Project automation or TC + regression path — see Argus `qa-engine` |
+| Product / app feature path | Project automation or TC + regression path in that product’s QA/dev factory |
 | Pure docs / comments / typos | No new tests required |
 
 ### Reviewer instructions

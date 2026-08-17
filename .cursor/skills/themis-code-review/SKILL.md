@@ -12,5 +12,5 @@ description: How to run Themis isolation as a sub-step of in-repo code review. U
 3. Merge Isolation blockers into `## Blocking issues` (or fail a dedicated scan job).
 4. `check_review_gate.sh review.md` must pass.
 
-Do **not** delete or weaken the shared tests MUST-HAVE in project rules.
-See `docs/WIRING.md`.
+Do **not** delete or override project-specific Themis rules, and do **not**
+weaken the shared tests MUST-HAVE. See `docs/WIRING.md`.
