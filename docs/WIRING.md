@@ -55,6 +55,8 @@ Isolation / follow-up scripts may stay on a **pinned** SHA via `ensure_themis_ag
 for stability; the **review rules pack** should float on `main` so policy updates
 propagate without control-C/V across engines.
 
+**Reviewers:** do **not** Blocking-flag unpinned review + pinned isolation/ensure — that split is required. See `review-rules/40-wiring-review-float.md`.
+
 ## 1. Engine repos (`dev-agent`, `qa-agent`, `ux-agent`, `themis-agent`)
 
 Add a parallel job in `.github/workflows/code-review.yml`:

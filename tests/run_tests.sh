@@ -181,6 +181,7 @@ have "review-rules/README.md"
 have "review-rules/10-tests-must-have.md"
 have "review-rules/20-review-output.md"
 have "review-rules/30-change-description.md"
+have "review-rules/40-wiring-review-float.md"
 have "scripts/build_review_prompt.sh"
 chmod +x scripts/build_review_prompt.sh
 grep -q 'No new tests' review-rules/10-tests-must-have.md \
