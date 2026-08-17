@@ -60,3 +60,14 @@ None.
 - No secrets in markdown/skills/workflows
 - No widening of hook permissions without justification
 - No `CURSOR_API_KEY` or tokens committed
+
+
+## Themis checkout wiring (do not Blocking-flag)
+
+Documented factory contract (`docs/WIRING.md`, `review-rules/40-wiring-review-float.md`):
+
+- **`review (Themis)`** may checkout `themis-agent` **unpinned** (`main`) so shared
+  `review-rules/` auto-applies.
+- **`isolation (Themis)`** / `ensure_themis_agent.sh` / follow-ups **may** pin a SHA.
+
+Do **not** mark unpinned review + pinned isolation as isolation/portability Blocking.
