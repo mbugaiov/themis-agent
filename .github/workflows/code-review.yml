@@ -57,7 +57,13 @@ jobs:
           EOF
           else
             git fetch origin "${BASE}" --quiet || true
-            PROMPT="You are Themis reviewing PR #${{ github.event.pull_request.number }} on themis-agent. Follow .cursor/rules/code-review.mdc, templates/engine-code-review-block.md (MUST-HAVE: new/changed behavior needs new or updated tests → Blocking), and AGENTS.md. Review ONLY changes vs origin/${BASE}. Produce ## Summary, ## Blocking issues, ## Suggestions — or LGTM - no blocking issues found. Isolation is a separate CI job; still fold leak findings into Blocking issues if seen."
+            PROMPT="$(bash scripts/build_review_prompt.sh \
+              --pr "${{ github.event.pull_request.number }}" \
+              --base "origin/${BASE}" \
+              --label themis-agent \
+              --local-rule .cursor/rules/code-review.mdc \
+              --agents AGENTS.md \
+              --themis-root .)"
             REVIEW_BIN=agent
             command -v agent >/dev/null 2>&1 || REVIEW_BIN=cursor-agent
             "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --output-format text -p "$PROMPT" > review.md || true

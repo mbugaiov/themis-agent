@@ -7,17 +7,21 @@ alwaysApply: false
 
 Review `git --no-pager diff origin/<base>...HEAD`.
 
-**MUST-HAVE (shared):** follow `templates/engine-code-review-block.md` —
-behavior changes without **new or updated** tests = **Blocking**.
+**MUST-HAVE (shared pack):** `review-rules/` via `scripts/build_review_prompt.sh` —
+behavior changes without **new or updated** tests = **Blocking**. See
+`review-rules/10-tests-must-have.md` (legacy pointer:
+`templates/engine-code-review-block.md`).
 
 Block on:
 
 1. Live customer/project data in tracked files
 2. Secrets
 3. Missing or stale tests for new/changed scanner, gate, or follow-up behaviour
-   (see shared template — file-exists / grep smoke alone is not enough)
+   (see shared pack — file-exists / grep smoke alone is not enough)
 4. Wiring docs that tell agents to **replace** product CR (isolation is a **second**
    CI check, not a replacement for project review)
+5. Adding shared policy only in consumer `code-review.mdc` instead of
+   `review-rules/` when it should apply to all Themis reviews
 
 Isolation findings are primarily gated by CI job `isolation (Themis)`; still fold
 leaks into Blocking issues if seen here.

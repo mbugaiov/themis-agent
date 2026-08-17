@@ -4,27 +4,56 @@ Every engine and product PR should show **two** distinct checks (plus gate/tests
 
 | Check | What it enforces |
 |-------|------------------|
-| `review (Themis)` | Project `.cursor/rules/code-review.mdc` **+** shared MUST-HAVE `templates/engine-code-review-block.md` (tests with every behavior change) |
+| `review (Themis)` | **Central pack** `themis-agent/review-rules/[0-9]*.md` (via `build_review_prompt.sh`) **+** local `.cursor/rules/code-review.mdc` |
 | `isolation (Themis)` | Portable isolation — checkout `themis-agent`, run `ci_isolation.sh` |
 
-## 0. Shared MUST-HAVE — tests (all `review (Themis)` jobs)
+## 0. Centralized review rules (no copy-paste across engines)
 
-Canonical text: [`templates/engine-code-review-block.md`](../templates/engine-code-review-block.md).
+Canonical pack: [`review-rules/`](../review-rules/README.md).
 
-In the **review** job (not only isolation), checkout `themis-agent` and cite the
-template in the `cursor-agent` prompt:
+| Goal | How |
+|------|-----|
+| Add a must-have for **all** Themis reviews | PR on **themis-agent**: add `review-rules/NN-name.md`, merge to `main` |
+| Next review everywhere | Consumer `review` job checkouts themis (**unpinned `main`** for the pack) and runs `build_review_prompt.sh` — new files are inlined automatically |
+| Product-specific blockers | Keep in local `code-review.mdc` only; must not weaken the pack |
+
+### Review job shape
 
 ```yaml
+  review:
+    name: review (Themis)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: mbugaiov/themis-agent
+          # Unpinned = next shared rule on themis main applies without engine PR
           path: .themis-agent
-      # …
-          PROMPT="… Follow .cursor/rules/code-review.mdc AND .themis-agent/templates/engine-code-review-block.md (MUST-HAVE: new/changed behavior needs new or updated tests → Blocking). …"
+      # … install cursor-agent …
+      - name: Run Cursor code review
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          git fetch origin "${BASE}" --quiet || true
+          PROMPT="$(bash .themis-agent/scripts/build_review_prompt.sh \
+            --pr "${{ github.event.pull_request.number }}" \
+            --base "origin/${BASE}" \
+            --label "${{ github.event.repository.name }}" \
+            --local-rule .cursor/rules/code-review.mdc \
+            --agents AGENTS.md \
+            --themis-root .themis-agent)"
+          cursor-agent --force --api-key "$CURSOR_API_KEY" --output-format text -p "$PROMPT" > review.md || true
 ```
 
-Local `code-review.mdc` must not weaken that bar. Product-specific blockers may
-be added beside it.
+**Do not** hardcode individual `review-rules/NN-*.md` paths in consumer prompts —
+the builder loads the whole pack.
+
+Isolation / follow-up scripts may stay on a **pinned** SHA via `ensure_themis_agent.sh`
+for stability; the **review rules pack** should float on `main` so policy updates
+propagate without control-C/V across engines.
 
 ## 1. Engine repos (`dev-agent`, `qa-agent`, `ux-agent`, `themis-agent`)
 
@@ -33,7 +62,7 @@ Add a parallel job in `.github/workflows/code-review.yml`:
 ```yaml
   review:
     name: review (Themis)
-    # … existing project review + themis checkout + shared tests template …
+    # … build_review_prompt.sh as above …
 
   isolation:
     name: isolation (Themis)
@@ -83,7 +112,7 @@ bash .themis-agent/scripts/ci_isolation.sh --mode product \
   --peer-pattern 'qa_lab_resource|lab-test-booking|lab-rm\.|LAB_RM_'
 ```
 
-Pantheon: job in `.github/workflows/pr.yml`, `auto-merge` `needs: [gate, review, isolation]`.
+Pantheon review job should also use `build_review_prompt.sh` (same as engines).
 
 LRM (Bitbucket): parallel step `Isolation (Themis)` next to `Cursor code review` / rename review to `Review (Themis)`.
 
