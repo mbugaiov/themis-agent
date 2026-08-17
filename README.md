@@ -1,13 +1,19 @@
-# Themis (isolation engine)
+# Themis (central review + isolation engine)
 
-**Themis** already lives in each **app repo** as project-specific PR code review.
-This repository is the **portable isolation / consistency engine** — a mandatory
-**sub-step** for engine PRs and an optional cross-tenant pass for product PRs.
+**Themis** owns:
+
+1. **Centralized PR code-review rules** (`review-rules/`) applied by every
+   `review (Themis)` job via `scripts/build_review_prompt.sh`.
+2. **Isolation / consistency** scanners (`themis-isolation`, `ci_isolation.sh`).
 
 | Layer | Owner |
 |-------|--------|
-| Language, architecture, product DoD | **In-repo Themis** (app / engine `code-review.mdc`) |
+| Shared must-haves (tests, output contract, description, …) | **This repo** `review-rules/` |
+| Language, architecture, product DoD extras | Consumer `code-review.mdc` (must not weaken shared pack) |
 | Customer/project leaks, secrets, engine consistency | **This engine** (`themis-isolation`) |
+
+Add a shared rule once → merge to `main` → next review on every wired repo loads it
+(no per-engine copy-paste). See `docs/WIRING.md` and `review-rules/README.md`.
 
 ## Modes
 

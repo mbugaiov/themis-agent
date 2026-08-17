@@ -176,22 +176,45 @@ grep -q 'Post review comment' .github/workflows/code-review.yml \
   && ok "code-review posts themis-cursor-review comment" \
   || no "code-review missing Post review comment"
 
-echo "== shared tests MUST-HAVE template =="
+echo "== central review-rules pack =="
+have "review-rules/README.md"
+have "review-rules/10-tests-must-have.md"
+have "review-rules/20-review-output.md"
+have "review-rules/30-change-description.md"
+have "scripts/build_review_prompt.sh"
+chmod +x scripts/build_review_prompt.sh
+grep -q 'No new tests' review-rules/10-tests-must-have.md \
+  && ok "10-tests-must-have has Blocking bar" \
+  || no "10-tests-must-have missing bar"
+PROMPT_OUT="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --label themis-self --themis-root . --local-rule .cursor/rules/code-review.mdc)"
+echo "$PROMPT_OUT" | grep -q 'Shared Themis review rules' \
+  && echo "$PROMPT_OUT" | grep -q '10-tests-must-have' \
+  && echo "$PROMPT_OUT" | grep -q '20-review-output' \
+  && echo "$PROMPT_OUT" | grep -q '30-change-description' \
+  && ok "build_review_prompt inlines full pack" \
+  || no "build_review_prompt must inline NN-*.md pack"
+# Adding a new numbered rule must be picked up without script edits (contract).
+TMP_RULE="$(mktemp "$ROOT/review-rules/99-selftest-XXXX.md")"
+echo "# selftest rule marker UNIQUE_THEMIS_RULE_PACK" >"$TMP_RULE"
+PROMPT2="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --label t --themis-root .)"
+echo "$PROMPT2" | grep -q 'UNIQUE_THEMIS_RULE_PACK' \
+  && ok "new review-rules/NN-*.md auto-included" \
+  || no "new NN-*.md must auto-include in prompt"
+rm -f "$TMP_RULE"
 have "templates/engine-code-review-block.md"
-grep -q 'MUST-HAVE' templates/engine-code-review-block.md \
-  && grep -q 'Blocking' templates/engine-code-review-block.md \
-  && grep -q 'No new tests' templates/engine-code-review-block.md \
-  && ok "engine-code-review-block has tests MUST-HAVE" \
-  || no "engine-code-review-block missing tests MUST-HAVE"
-grep -q 'engine-code-review-block.md' docs/WIRING.md \
-  && ok "WIRING cites shared tests template" \
-  || no "WIRING must cite engine-code-review-block.md"
-grep -q 'engine-code-review-block.md' .github/workflows/code-review.yml \
-  && ok "themis code-review workflow cites shared template" \
-  || no "themis code-review workflow must cite shared template"
-grep -q 'engine-code-review-block.md' .cursor/skills/themis-code-review/SKILL.md \
-  && ok "themis-code-review skill cites template" \
-  || no "themis-code-review skill must cite template"
+grep -q 'review-rules/10-tests-must-have.md' templates/engine-code-review-block.md \
+  && ok "legacy template points at review-rules" \
+  || no "legacy template must point at review-rules"
+grep -q 'build_review_prompt.sh' docs/WIRING.md \
+  && grep -q 'review-rules/' docs/WIRING.md \
+  && ok "WIRING documents central pack + builder" \
+  || no "WIRING must document build_review_prompt + review-rules"
+grep -q 'build_review_prompt.sh' .github/workflows/code-review.yml \
+  && ok "themis code-review uses build_review_prompt" \
+  || no "themis code-review must use build_review_prompt"
+grep -q 'review-rules/' .cursor/skills/themis-code-review/SKILL.md \
+  && ok "themis-code-review skill cites review-rules" \
+  || no "themis-code-review skill must cite review-rules"
 
 echo
 echo "Result: $PASS passed, $FAIL failed"
