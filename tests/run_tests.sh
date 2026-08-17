@@ -176,6 +176,23 @@ grep -q 'Post review comment' .github/workflows/code-review.yml \
   && ok "code-review posts themis-cursor-review comment" \
   || no "code-review missing Post review comment"
 
+echo "== shared tests MUST-HAVE template =="
+have "templates/engine-code-review-block.md"
+grep -q 'MUST-HAVE' templates/engine-code-review-block.md \
+  && grep -q 'Blocking' templates/engine-code-review-block.md \
+  && grep -q 'No new tests' templates/engine-code-review-block.md \
+  && ok "engine-code-review-block has tests MUST-HAVE" \
+  || no "engine-code-review-block missing tests MUST-HAVE"
+grep -q 'engine-code-review-block.md' docs/WIRING.md \
+  && ok "WIRING cites shared tests template" \
+  || no "WIRING must cite engine-code-review-block.md"
+grep -q 'engine-code-review-block.md' .github/workflows/code-review.yml \
+  && ok "themis code-review workflow cites shared template" \
+  || no "themis code-review workflow must cite shared template"
+grep -q 'engine-code-review-block.md' .cursor/skills/themis-code-review/SKILL.md \
+  && ok "themis-code-review skill cites template" \
+  || no "themis-code-review skill must cite template"
+
 echo
 echo "Result: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

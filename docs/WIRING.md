@@ -4,8 +4,27 @@ Every engine and product PR should show **two** distinct checks (plus gate/tests
 
 | Check | What it enforces |
 |-------|------------------|
-| `review (Themis)` | Project-specific rules (`.cursor/rules/code-review.mdc`) |
+| `review (Themis)` | Project `.cursor/rules/code-review.mdc` **+** shared MUST-HAVE `templates/engine-code-review-block.md` (tests with every behavior change) |
 | `isolation (Themis)` | Portable isolation — checkout `themis-agent`, run `ci_isolation.sh` |
+
+## 0. Shared MUST-HAVE — tests (all `review (Themis)` jobs)
+
+Canonical text: [`templates/engine-code-review-block.md`](../templates/engine-code-review-block.md).
+
+In the **review** job (not only isolation), checkout `themis-agent` and cite the
+template in the `cursor-agent` prompt:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          repository: mbugaiov/themis-agent
+          path: .themis-agent
+      # …
+          PROMPT="… Follow .cursor/rules/code-review.mdc AND .themis-agent/templates/engine-code-review-block.md (MUST-HAVE: new/changed behavior needs new or updated tests → Blocking). …"
+```
+
+Local `code-review.mdc` must not weaken that bar. Product-specific blockers may
+be added beside it.
 
 ## 1. Engine repos (`dev-agent`, `qa-agent`, `ux-agent`, `themis-agent`)
 
@@ -14,7 +33,7 @@ Add a parallel job in `.github/workflows/code-review.yml`:
 ```yaml
   review:
     name: review (Themis)
-    # … existing project review …
+    # … existing project review + themis checkout + shared tests template …
 
   isolation:
     name: isolation (Themis)
