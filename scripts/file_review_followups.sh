@@ -112,7 +112,7 @@ EOF
   exit 0
 fi
 
-echo "Filing ONE batched follow-up issue ($COUNT item(s)) on $REPO from PR #$PR…"
+echo "Filing ONE batched follow-up issue ($COUNT item(s)) on $REPO from PR #${PR}..."
 
 BODY_ISSUE="$(python3 "$ROOT/scripts/review_followups.py" "$REVIEW_FILE" \
   --issue-body --pr "$PR" --repo "$REPO")"
