@@ -8,7 +8,7 @@
 
 | Layer | Owner |
 |-------|--------|
-| Shared must-haves (tests, output contract, description, …) | **This repo** `review-rules/` |
+| Shared must-haves (tests, output contract, description, reuse, …) | **This repo** `review-rules/` |
 | Language, architecture, product DoD extras | Consumer `code-review.mdc` (must not weaken shared pack) |
 | Customer/project leaks, secrets, engine consistency | **This engine** (`themis-isolation`) |
 
