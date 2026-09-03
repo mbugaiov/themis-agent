@@ -186,11 +186,16 @@ have "review-rules/10-tests-must-have.md"
 have "review-rules/20-review-output.md"
 have "review-rules/30-change-description.md"
 have "review-rules/40-wiring-review-float.md"
+have "review-rules/50-reuse-existing.md"
 have "scripts/build_review_prompt.sh"
 chmod +x scripts/build_review_prompt.sh
 grep -q 'No new tests' review-rules/10-tests-must-have.md \
   && ok "10-tests-must-have has Blocking bar" \
   || no "10-tests-must-have missing bar"
+grep -q 'reuse existing' review-rules/50-reuse-existing.md \
+  && grep -q 'Search the merge target\|search the merge target\|destination tree' review-rules/50-reuse-existing.md \
+  && ok "50-reuse-existing requires base-tree search" \
+  || no "50-reuse-existing missing reuse / base search bar"
 ec=0; bash scripts/build_review_prompt.sh --themis-root . >/dev/null 2> /tmp/themis-brp-pr.err || ec=$?
 [[ "$ec" -eq 2 ]] && grep -q -- '--pr' /tmp/themis-brp-pr.err \
   && ok "builder missing --pr exits 2" \
@@ -210,7 +215,8 @@ PROMPT_OUT="$(bash scripts/build_review_prompt.sh --pr 1 --base origin/main --la
 if grep -q 'Shared Themis review rules' <<<"$PROMPT_OUT" \
   && grep -q '10-tests-must-have' <<<"$PROMPT_OUT" \
   && grep -q '20-review-output' <<<"$PROMPT_OUT" \
-  && grep -q '30-change-description' <<<"$PROMPT_OUT"; then
+  && grep -q '30-change-description' <<<"$PROMPT_OUT" \
+  && grep -q '50-reuse-existing' <<<"$PROMPT_OUT"; then
   ok "build_review_prompt inlines full pack"
 else
   no "build_review_prompt must inline NN-*.md pack"

@@ -22,10 +22,20 @@ These files are the **portable code-review brain** for every repo that runs
 Do **not** put sibling product brand names or customer slugs in these files
 (isolation will block). Keep wording portable.
 
+## Pack order (substantive lenses)
+
+| File | Lens |
+|------|------|
+| `10-tests-must-have` | Behavior change ⇒ tests in same PR |
+| `20-review-output` | Required `review.md` sections / gate |
+| `30-change-description` | Opaque / missing intent |
+| `40-wiring-review-float` | Do not Blocking-flag unpinned review checkout |
+| `50-reuse-existing` | Search **base** for duplicate / near-duplicate code to reuse |
+
 ## Local vs shared
 
 | Layer | Where |
 |-------|--------|
-| Shared must-haves (tests, output, description, …) | **This directory** |
+| Shared must-haves (tests, output, description, reuse, …) | **This directory** |
 | Engine/product DoD, domain blockers | Consumer `code-review.mdc` |
 | Cross-tenant / secrets / host paths | `isolation (Themis)` job |
