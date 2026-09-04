@@ -9,7 +9,9 @@ description: How to run Themis isolation as a sub-step of in-repo code review. U
    `review-rules/[0-9]*.md`, then local `code-review.mdc` (must not weaken the pack).
    Substantive pack lenses include tests (`10`), change description (`30`), and
    **reuse-existing (`50`)** — search the merge **base** for duplicate / near-duplicate
-   code before approving new modules.
+   code before approving new modules. **Entry-only twins** (same screen/flow; only
+   tab/plant/nav differs; or fixture rename of the same setup) → **`## Blocking issues`**,
+   not Suggestions — shared parametrized fixture / extend existing page is required.
 2. Run **`themis-isolation`** (mode engine or product).
 3. Merge Isolation blockers into `## Blocking issues` (or fail a dedicated scan job).
 4. `check_review_gate.sh review.md` must pass.

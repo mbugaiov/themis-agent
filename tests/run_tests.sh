@@ -137,7 +137,8 @@ echo "$FU_MIX" | grep -q '"count": 4' && ok "followups mixed count=4" || no "fol
 MIX_FP=$(echo "$FU_MIX" | python3 -c 'import json,sys; print(json.load(sys.stdin)["fingerprint"])')
 [[ "$MIX_FP" == "c0b1fd20198917df" ]] && ok "followups mixed fingerprint" || no "followups fingerprint drift ($MIX_FP)"
 FU_RN=$(THEMIS_FOLLOWUP_SECTIONS='Risks,Nits' python3 scripts/review_followups.py tests/fixtures/review-followups/risks-nits.md --json)
-echo "$FU_RN" | grep -q '"count": 2' && ok "followups Risks+Nits" || no "followups Risks+Nits"
+# Use [[ ]] not echo|grep — pipefail + grep -q → Broken pipe false fail in CI.
+[[ "$FU_RN" == *'"count": 2'* ]] && ok "followups Risks+Nits" || no "followups Risks+Nits"
 grep -q 'ONE batched follow-up issue' scripts/file_review_followups.sh \
   && grep -q 'fix together in one PR' scripts/file_review_followups.sh \
   && grep -q '1 item' scripts/file_review_followups.sh \
@@ -196,6 +197,17 @@ grep -q 'reuse existing' review-rules/50-reuse-existing.md \
   && grep -q 'Search the merge target\|search the merge target\|destination tree' review-rules/50-reuse-existing.md \
   && ok "50-reuse-existing requires base-tree search" \
   || no "50-reuse-existing missing reuse / base search bar"
+grep -q 'Entry-only twin' review-rules/50-reuse-existing.md \
+  && grep -q 'parametrized' review-rules/50-reuse-existing.md \
+  && grep -q 'Not a Suggestion' review-rules/50-reuse-existing.md \
+  && grep -A2 'Block on' review-rules/50-reuse-existing.md | head -1 >/dev/null \
+  && ok "50-reuse-existing marks entry-only page/fixture twins Blocking" \
+  || no "50-reuse-existing must Blocking entry-only twins (not Suggestion)"
+# Negative: Suggestions-only section must not soft-pedal entry-only twins
+SUGG_SEC=$(awk '/^## Suggestions only/,/^## What/' review-rules/50-reuse-existing.md)
+! grep -qiE '\btab\b|plant/|parametrized fixture|entry-only' <<<"$SUGG_SEC" \
+  && ok "50-reuse-existing Suggestions section does not soft-pedal entry-only twins" \
+  || no "Suggestions must not list entry-only tab twins as non-blocking"
 ec=0; bash scripts/build_review_prompt.sh --themis-root . >/dev/null 2> /tmp/themis-brp-pr.err || ec=$?
 [[ "$ec" -eq 2 ]] && grep -q -- '--pr' /tmp/themis-brp-pr.err \
   && ok "builder missing --pr exits 2" \

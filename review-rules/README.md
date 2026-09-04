@@ -30,7 +30,7 @@ Do **not** put sibling product brand names or customer slugs in these files
 | `20-review-output` | Required `review.md` sections / gate |
 | `30-change-description` | Opaque / missing intent |
 | `40-wiring-review-float` | Do not Blocking-flag unpinned review checkout |
-| `50-reuse-existing` | Search **base** for duplicate / near-duplicate code to reuse |
+| `50-reuse-existing` | Search **base** for duplicate / near-duplicate code to reuse — **entry-only page/fixture twins are Blocking** |
 
 ## Local vs shared
 
