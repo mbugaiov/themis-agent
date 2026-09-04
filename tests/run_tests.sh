@@ -196,6 +196,17 @@ grep -q 'reuse existing' review-rules/50-reuse-existing.md \
   && grep -q 'Search the merge target\|search the merge target\|destination tree' review-rules/50-reuse-existing.md \
   && ok "50-reuse-existing requires base-tree search" \
   || no "50-reuse-existing missing reuse / base search bar"
+grep -q 'Entry-only twin' review-rules/50-reuse-existing.md \
+  && grep -q 'parametrized' review-rules/50-reuse-existing.md \
+  && grep -q 'Not a Suggestion' review-rules/50-reuse-existing.md \
+  && grep -A2 'Block on' review-rules/50-reuse-existing.md | head -1 >/dev/null \
+  && ok "50-reuse-existing marks entry-only page/fixture twins Blocking" \
+  || no "50-reuse-existing must Blocking entry-only twins (not Suggestion)"
+# Negative: Suggestions-only section must not soft-pedal entry-only twins
+SUGG_SEC=$(awk '/^## Suggestions only/,/^## What/' review-rules/50-reuse-existing.md)
+! grep -qiE '\btab\b|plant/|parametrized fixture|entry-only' <<<"$SUGG_SEC" \
+  && ok "50-reuse-existing Suggestions section does not soft-pedal entry-only twins" \
+  || no "Suggestions must not list entry-only tab twins as non-blocking"
 ec=0; bash scripts/build_review_prompt.sh --themis-root . >/dev/null 2> /tmp/themis-brp-pr.err || ec=$?
 [[ "$ec" -eq 2 ]] && grep -q -- '--pr' /tmp/themis-brp-pr.err \
   && ok "builder missing --pr exits 2" \
