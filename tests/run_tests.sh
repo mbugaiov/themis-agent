@@ -182,6 +182,18 @@ fi
 python3 tests/test_followups_transport.py >/dev/null \
   && ok "followups transport unit tests" \
   || no "followups transport unit tests"
+# Regression: importlib load used by dispose gate must register sys.modules (dataclasses).
+python3 -c "
+import importlib.util, sys
+from pathlib import Path
+p = Path('scripts/followups_transport.py')
+spec = importlib.util.spec_from_file_location('followups_transport', p)
+m = importlib.util.module_from_spec(spec)
+sys.modules['followups_transport'] = m
+spec.loader.exec_module(m)
+assert m.FollowUpConfig.from_env().scm == 'github'
+" && ok "followups_transport importlib+sys.modules load" \
+  || no "followups_transport importlib load broken"
 grep -q 'THEMIS_FOLLOWUP_TRACKER' docs/FOLLOWUPS.md \
   && grep -q 'bitbucket' docs/FOLLOWUPS.md \
   && ok "FOLLOWUPS.md jira+bitbucket matrix" \

@@ -52,8 +52,9 @@ root = Path(os.environ['ROOT'])
 spec = importlib.util.spec_from_file_location('rf', root / 'scripts' / 'review_followups.py')
 rf = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rf)
-spec2 = importlib.util.spec_from_file_location('ft', root / 'scripts' / 'followups_transport.py')
+spec2 = importlib.util.spec_from_file_location('followups_transport', root / 'scripts' / 'followups_transport.py')
 ft = importlib.util.module_from_spec(spec2)
+sys.modules['followups_transport'] = ft
 spec2.loader.exec_module(ft)
 cfg = ft.FollowUpConfig.from_env()
 repo = os.environ.get('REPO', '')
@@ -116,10 +117,11 @@ fi
 if [[ "$COUNT" -eq 0 ]]; then
   DISPOSE_TMP="$(mktemp)"
   python3 -c "
-import importlib.util
+import importlib.util, sys
 from pathlib import Path
-spec = importlib.util.spec_from_file_location('ft', Path('$ROOT/scripts/followups_transport.py'))
+spec = importlib.util.spec_from_file_location('followups_transport', Path('$ROOT/scripts/followups_transport.py'))
 ft = importlib.util.module_from_spec(spec)
+sys.modules['followups_transport'] = ft
 spec.loader.exec_module(ft)
 print(ft.build_dispose_body('$MARKER', '$FP'))
 " >"$DISPOSE_TMP"
@@ -161,10 +163,11 @@ echo "  batched → $ISSUE_URL"
 
 DISPOSE_TMP="$(mktemp)"
 python3 -c "
-import importlib.util
+import importlib.util, sys
 from pathlib import Path
-spec = importlib.util.spec_from_file_location('ft', Path('$ROOT/scripts/followups_transport.py'))
+spec = importlib.util.spec_from_file_location('followups_transport', Path('$ROOT/scripts/followups_transport.py'))
 ft = importlib.util.module_from_spec(spec)
+sys.modules['followups_transport'] = ft
 spec.loader.exec_module(ft)
 print(ft.build_dispose_body('$MARKER', '$FP', filed=True, issue_url='''$ISSUE_URL''', count=$COUNT))
 " >"$DISPOSE_TMP"
