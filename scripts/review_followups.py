@@ -174,6 +174,8 @@ def fetch_latest_themis_review(
     if not spec or not spec.loader:
         raise RuntimeError("followups_transport.py not found")
     ft = importlib.util.module_from_spec(spec)
+    # dataclasses need the module registered before exec_module (CPython importlib).
+    sys.modules["followups_transport"] = ft
     spec.loader.exec_module(ft)
     cfg = ft.FollowUpConfig.from_env()
     if repo and not cfg.github_repo:
@@ -251,6 +253,7 @@ def main() -> int:
             spec = importlib.util.spec_from_file_location("followups_transport", tp)
             if spec and spec.loader:
                 ft = importlib.util.module_from_spec(spec)
+                sys.modules["followups_transport"] = ft
                 spec.loader.exec_module(ft)
                 cfg = ft.FollowUpConfig.from_env()
                 pr_url = cfg.source_pr_url(issue_pr)
