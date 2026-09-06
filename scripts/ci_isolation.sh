@@ -123,8 +123,13 @@ EOF
 )"
   REVIEW_BIN="agent"
   command -v agent >/dev/null 2>&1 || REVIEW_BIN="cursor-agent"
+  # Pin composer-2.5 — team disabled Cursor Router Optimize For; default auto fails in CI.
   set +e
-  "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --output-format text -p "$PROMPT" > "$OUT" 2>isolation.err || true
+  "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --model composer-2.5 --output-format text -p "$PROMPT" > "$OUT" 2>isolation.err
+  AGENT_EC=$?
+  if [[ "$AGENT_EC" -ne 0 ]] && grep -qiE 'Optimize For|permission_denied' isolation.err 2>/dev/null; then
+    "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --model composer-2.5-fast --output-format text -p "$PROMPT" > "$OUT" 2>isolation.err || true
+  fi
   set -e
   if [[ -s isolation.err ]]; then
     echo "----- isolation LLM stderr -----"

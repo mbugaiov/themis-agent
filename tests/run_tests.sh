@@ -196,6 +196,12 @@ grep -q 'Post review comment' .github/workflows/code-review.yml \
   && ok "code-review posts themis-cursor-review comment" \
   || no "code-review missing Post review comment"
 
+# Cursor Router Optimize For disabled for team — CI must pin an explicit model.
+grep -q -- '--model composer-2.5' .github/workflows/code-review.yml \
+  && grep -q -- '--model composer-2.5' scripts/ci_isolation.sh \
+  && ok "CI pins composer-2.5 (Optimize For workaround)" \
+  || no "CI missing composer-2.5 model pin"
+
 echo "== central review-rules pack =="
 have "review-rules/README.md"
 have "review-rules/10-tests-must-have.md"
