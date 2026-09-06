@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # After Themis is green: ensure follow-up sections were fixed in the PR *or*
-# filed as same-repo backlog issues (disposal comment for *this* review fingerprint).
+# filed as backlog issues (disposal comment for *this* review fingerprint).
 #
 # Usage: bash scripts/check_review_followups_disposed.sh <PR_NUMBER>
 #
@@ -9,6 +9,7 @@
 #   THEMIS_FOLLOWUP_SECTIONS
 #   THEMIS_FOLLOWUP_DISPOSE_MARKER
 #   THEMIS_FOLLOWUP_REPO   optional owner/name (preferred over gh from this checkout)
+#   THEMIS_FOLLOWUP_SCM    github|bitbucket (default github)
 #   GITHUB_REPOSITORY      used in Actions when set to the *engine* repo
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -26,7 +27,7 @@ if [[ -n "${THEMIS_FOLLOWUP_REPO:-}" ]]; then
 elif [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
   REPO="$GITHUB_REPOSITORY"
 else
-  REPO="$(cd "$CALLER_PWD" && gh repo view --json nameWithOwner -q .nameWithOwner)"
+  REPO="$(cd "$CALLER_PWD" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
 fi
 MARKER="${THEMIS_FOLLOWUP_DISPOSE_MARKER:-<!-- themis-review-followups-disposed -->}"
 
@@ -34,7 +35,7 @@ TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 
 ERR="$(mktemp)"
-if ! python3 "$ROOT/scripts/review_followups.py" --from-pr "$PR" --repo "$REPO" --json >"$TMP" 2>"$ERR"; then
+if ! REPO="$REPO" python3 "$ROOT/scripts/review_followups.py" --from-pr "$PR" --repo "${REPO:-placeholder/repo}" --json >"$TMP" 2>"$ERR"; then
   echo "FOLLOWUPS_CHECK_FAIL — no review comment found after green checks (fail-closed)." >&2
   cat "$ERR" >&2 || true
   rm -f "$ERR"
@@ -51,9 +52,8 @@ if [[ "$COUNT" -eq 0 ]]; then
   exit 0
 fi
 
-DISPOSED="$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
-  --jq ".[] | select(.body|contains(\"${MARKER}\")) | select(.body|contains(\"fingerprint=${FP}\")) | .id" \
-  2>/dev/null | head -1 || true)"
+DISPOSED="$(python3 "$ROOT/scripts/followups_transport.py" find-dispose "$PR" \
+  --marker "$MARKER" --fingerprint "$FP" 2>/dev/null || true)"
 
 if [[ -n "$DISPOSED" ]]; then
   echo "FOLLOWUPS_CHECK_OK — disposed (comment $DISPOSED, fp=$FP), open items were $COUNT"

@@ -66,7 +66,14 @@ jobs:
               --themis-root .)"
             REVIEW_BIN=agent
             command -v agent >/dev/null 2>&1 || REVIEW_BIN=cursor-agent
-            "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --output-format text -p "$PROMPT" > review.md || true
+            # Pin composer-2.5 — team disabled Cursor Router Optimize For; default auto fails in CI.
+            set +e
+            "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --model composer-2.5 --output-format text -p "$PROMPT" > review.md 2> review.err
+            AGENT_EC=$?
+            set -e
+            if [[ "$AGENT_EC" -ne 0 ]] && grep -qiE 'Optimize For|permission_denied' review.err 2>/dev/null; then
+              "$REVIEW_BIN" --force --api-key "$CURSOR_API_KEY" --model composer-2.5-fast --output-format text -p "$PROMPT" > review.md 2> review.err || true
+            fi
             [[ -s review.md ]] || echo "Cursor review produced no output (see build log above)." > review.md
           fi
           cat review.md

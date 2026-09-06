@@ -122,12 +122,17 @@ trap - EXIT
 
 echo "== follow-ups =="
 # Ignore caller/product engine env so defaults match fixtures / fingerprints.
-unset THEMIS_FOLLOWUP_SECTIONS THEMIS_REVIEW_MARKER THEMIS_FOLLOWUP_DISPOSE_MARKER
-for f in scripts/review_followups.py scripts/check_review_followups_disposed.sh \
+unset THEMIS_FOLLOWUP_SECTIONS THEMIS_REVIEW_MARKER THEMIS_FOLLOWUP_DISPOSE_MARKER \
+  THEMIS_FOLLOWUP_TRACKER THEMIS_FOLLOWUP_SCM THEMIS_FOLLOWUP_BB_REPO \
+  BITBUCKET_WORKSPACE BITBUCKET_REPO_SLUG JIRA_BASE_URL JIRA_PROJECT_KEY \
+  THEMIS_FOLLOWUP_JIRA_EPIC
+for f in scripts/review_followups.py scripts/followups_transport.py \
+  scripts/check_review_followups_disposed.sh \
   scripts/file_review_followups.sh docs/FOLLOWUPS.md; do
   have "$f"
 done
-chmod +x scripts/check_review_followups_disposed.sh scripts/file_review_followups.sh scripts/review_followups.py
+chmod +x scripts/check_review_followups_disposed.sh scripts/file_review_followups.sh \
+  scripts/review_followups.py scripts/followups_transport.py
 FU_NONE=$(python3 scripts/review_followups.py tests/fixtures/review-followups/none.md --json)
 echo "$FU_NONE" | grep -q '"count": 0' && ok "followups none" || no "followups none"
 FU_LGTM=$(python3 scripts/review_followups.py tests/fixtures/review-followups/none-with-lgtm.md --json)
@@ -174,12 +179,28 @@ if python3 -c 'import json,sys; d=json.load(sys.stdin); raise SystemExit(0 if d.
 else
   no "followups Risks-only should count=1"
 fi
+python3 tests/test_followups_transport.py >/dev/null \
+  && ok "followups transport unit tests" \
+  || no "followups transport unit tests"
+grep -q 'THEMIS_FOLLOWUP_TRACKER' docs/FOLLOWUPS.md \
+  && grep -q 'bitbucket' docs/FOLLOWUPS.md \
+  && ok "FOLLOWUPS.md jira+bitbucket matrix" \
+  || no "FOLLOWUPS.md jira+bitbucket matrix"
+grep -q 'THEMIS_FOLLOWUP_SCM' docs/WIRING.md \
+  && ok "WIRING.md follow-up transport matrix" \
+  || no "WIRING.md follow-up transport matrix"
 have ".github/workflows/auto-merge.yml"
 have ".github/workflows/ci.yml"
 grep -q 'Post review comment' .github/workflows/code-review.yml \
   && grep -q 'themis-cursor-review' .github/workflows/code-review.yml \
   && ok "code-review posts themis-cursor-review comment" \
   || no "code-review missing Post review comment"
+
+# Cursor Router Optimize For disabled for team — CI must pin an explicit model.
+grep -q -- '--model composer-2.5' .github/workflows/code-review.yml \
+  && grep -q -- '--model composer-2.5' scripts/ci_isolation.sh \
+  && ok "CI pins composer-2.5 (Optimize For workaround)" \
+  || no "CI missing composer-2.5 model pin"
 
 echo "== central review-rules pack =="
 have "review-rules/README.md"
