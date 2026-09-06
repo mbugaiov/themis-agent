@@ -130,4 +130,26 @@ Primary enforcement is the **CI check** `isolation (Themis)`, not a section insi
 
 ## 4. Follow-ups (Suggestions / Risks) before merge
 
-See [FOLLOWUPS.md](./FOLLOWUPS.md). Engines must run `check_review_followups_disposed.sh` (from this repo under `.themis-agent`) after required checks are green — in `wait_*_pipeline` and auto-merge — so Suggestions/Risks are fixed or filed as **same-repo** backlog issues.
+See [FOLLOWUPS.md](./FOLLOWUPS.md). Engines must run `check_review_followups_disposed.sh` (from this repo under `.themis-agent`) after required checks are green — in `wait_*_pipeline` and auto-merge — so Suggestions/Risks are fixed or filed as **one batched** backlog issue before merge.
+
+### Wiring matrix
+
+| Stack | `THEMIS_FOLLOWUP_SCM` | `THEMIS_FOLLOWUP_TRACKER` | Notes |
+|-------|----------------------|---------------------------|-------|
+| GitHub engines (Pantheon, Iris, Hephaestus, …) | `github` (default) | `github` (default) | Same-repo GitHub Issues; dispose marker on PR comments |
+| Bitbucket + Jira products (e.g. SolArk / LRM) | `bitbucket` | `jira` | Review + dispose on BB PR; **one** Jira Task under `THEMIS_FOLLOWUP_JIRA_EPIC` with `themis-followup` + `impl-dev` |
+
+Transport implementation: `scripts/followups_transport.py` (injectable for unit tests).
+
+**Bitbucket Pipeline** — after `Review (Themis)` posts the review comment, add a step:
+
+```bash
+export THEMIS_FOLLOWUP_SCM=bitbucket
+export THEMIS_FOLLOWUP_TRACKER=jira
+# BITBUCKET_* + JIRA_* creds (see FOLLOWUPS.md)
+bash .themis-agent/scripts/check_review_followups_disposed.sh "$BITBUCKET_PR_ID"
+# optional auto-file when gated items remain:
+# bash .themis-agent/scripts/file_review_followups.sh "$BITBUCKET_PR_ID" --from-comment
+```
+
+GitHub auto-merge workflows keep the existing env (no `THEMIS_FOLLOWUP_*` transport vars required).

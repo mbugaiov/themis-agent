@@ -126,14 +126,16 @@ def format_batched_issue_body(
     pr: str | int,
     repo: str,
     fp: str | None = None,
+    pr_url: str | None = None,
 ) -> str:
     """One backlog issue body: single checklist for all gated follow-ups."""
     count = len(items)
     fp = fp if fp is not None else fingerprint(items)
+    source_url = pr_url or f"https://github.com/{repo}/pull/{pr}"
     lines = [
         f"## From Themis review on PR #{pr}",
         "",
-        f"**Source PR:** https://github.com/{repo}/pull/{pr}",
+        f"**Source PR:** {source_url}",
         f"**Fingerprint:** `{fp}`",
         f"**Items:** {count}",
         "",
@@ -161,23 +163,23 @@ def format_batched_issue_body(
 def fetch_latest_themis_review(
     repo: str, pr: int, marker: str | None = None
 ) -> str | None:
-    import subprocess
+    """Fetch latest review comment from SCM (GitHub default; Bitbucket when env set)."""
+    import importlib.util
+    from dataclasses import replace
+    from pathlib import Path
 
     marker = marker or review_marker()
-    comments: list[dict] = []
-    page = 1
-    while True:
-        path = f"repos/{repo}/issues/{pr}/comments?per_page=100&page={page}"
-        raw = subprocess.check_output(["gh", "api", path], stderr=subprocess.DEVNULL)
-        batch = json.loads(raw.decode())
-        if not batch:
-            break
-        comments.extend(batch)
-        if len(batch) < 100:
-            break
-        page += 1
-    matches = [c.get("body") or "" for c in comments if marker in (c.get("body") or "")]
-    return matches[-1] if matches else None
+    transport_path = Path(__file__).with_name("followups_transport.py")
+    spec = importlib.util.spec_from_file_location("followups_transport", transport_path)
+    if not spec or not spec.loader:
+        raise RuntimeError("followups_transport.py not found")
+    ft = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ft)
+    cfg = ft.FollowUpConfig.from_env()
+    if repo and not cfg.github_repo:
+        cfg = replace(cfg, github_repo=repo)
+    transport = ft.FollowUpTransport(config=cfg)
+    return transport.fetch_latest_review(pr, marker)
 
 
 def main() -> int:
@@ -240,7 +242,25 @@ def main() -> int:
         if not issue_pr or not issue_repo:
             print("--issue-body requires --pr N and --repo owner/name", file=sys.stderr)
             return 2
-        print(format_batched_issue_body(items, pr=issue_pr, repo=issue_repo))
+        pr_url = None
+        try:
+            import importlib.util
+            from pathlib import Path
+
+            tp = Path(__file__).with_name("followups_transport.py")
+            spec = importlib.util.spec_from_file_location("followups_transport", tp)
+            if spec and spec.loader:
+                ft = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(ft)
+                cfg = ft.FollowUpConfig.from_env()
+                pr_url = cfg.source_pr_url(issue_pr)
+        except Exception:
+            pr_url = None
+        print(
+            format_batched_issue_body(
+                items, pr=issue_pr, repo=issue_repo, pr_url=pr_url
+            )
+        )
     elif as_json:
         print(
             json.dumps(
