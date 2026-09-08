@@ -290,6 +290,11 @@ grep -q -- '--model composer-2.5' .github/workflows/code-review.yml \
   && grep -q -- '--model composer-2.5' scripts/ci_isolation.sh \
   && ok "CI pins composer-2.5 (Optimize For workaround)" \
   || no "CI missing composer-2.5 model pin"
+# Cost: never fall back to composer-2.5-fast (≈6× input/output vs composer-2.5).
+! grep -q 'composer-2.5-fast' .github/workflows/code-review.yml \
+  && ! grep -q 'composer-2.5-fast' scripts/ci_isolation.sh \
+  && ok "CI never uses composer-2.5-fast" \
+  || no "CI still references composer-2.5-fast"
 
 echo "== central review-rules pack =="
 have "review-rules/README.md"
