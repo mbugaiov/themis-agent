@@ -148,8 +148,8 @@ export THEMIS_FOLLOWUP_SCM=bitbucket
 export THEMIS_FOLLOWUP_TRACKER=jira
 # BITBUCKET_* + JIRA_* creds (see FOLLOWUPS.md)
 bash .themis-agent/scripts/check_review_followups_disposed.sh "$BITBUCKET_PR_ID"
-# optional auto-file when gated items remain:
-# bash .themis-agent/scripts/file_review_followups.sh "$BITBUCKET_PR_ID" --from-comment
+# when gated items remain:
+# bash .themis-agent/scripts/dispose_review_followups.sh "$BITBUCKET_PR_ID" triage.json --from-comment
 ```
 
 GitHub auto-merge workflows keep the existing env (no `THEMIS_FOLLOWUP_*` transport vars required).

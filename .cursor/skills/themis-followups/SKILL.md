@@ -16,7 +16,7 @@ Triage every gated item:
 - **accepted** — a documented caveat; rationale is mandatory and no issue is filed.
 - **deferred** — only these items are sent to `file_review_followups.sh`, in **one** checklist issue that factory pickup closes in **one** PR.
 
-Never accept security/authz/ACL/secrets, invented metrics or wrong buildId, data honesty, PII, or an OpenSpec `THEN` contradiction. Fix or defer those. Acceptable caveats include jsdom limits, class-token versus pixel checks, testid wording versus FR, and “Argus STG remains oracle.”
+Never accept security/authz/ACL/secrets, invented metrics or wrong buildId, data honesty, PII, or an OpenSpec `THEN` contradiction. Fix or defer those. Acceptable caveats include jsdom limits, class-token versus pixel checks, testid wording versus FR, and “`<external-stg-oracle>` remains oracle.”
 
 **Product / MVP repos:** set `THEMIS_FOLLOWUP_SECTIONS=Risks` so **Nits stay comment-only** and do not flood backlog.
 

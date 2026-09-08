@@ -12,9 +12,11 @@ Shared merge gate for all dual-review engines.
 
 **Preferred:** mark every gated follow-up **fixed** on the **same** source PR, with the commit or implementation detail in its rationale.
 
-**Accepted caveat:** use **accepted** only for a real limitation or oracle caveat and provide a rationale. Typical acceptable cases are jsdom limits, class-token assertions instead of pixel checks, testid wording versus a functional requirement, and “Argus STG remains oracle.” Acceptance never files an issue.
+**Accepted caveat:** use **accepted** only for a real limitation or oracle caveat and provide a rationale. Typical acceptable cases are jsdom limits, class-token assertions instead of pixel checks, testid wording versus a functional requirement, and “`<external-stg-oracle>` remains oracle.” Acceptance never files an issue.
 
 Acceptance is forbidden for security/authz/ACL/secrets, invented metrics or a wrong buildId, data honesty, PII, and OpenSpec `THEN` contradictions. These must be fixed or deferred.
+
+These deny-list categories are universal engine policy, including the build identity and specification-consistency cases. They apply even when a consumer uses different names for its build ID or does not otherwise use OpenSpec.
 
 **If deferring:** only **deferred** items go through `file_review_followups.sh`, which opens **one** batched backlog issue with a checklist. Factory pickup must close that checklist in **one** follow-up PR — never one issue/PR per bullet.
 
@@ -114,7 +116,7 @@ bash .themis-agent/scripts/dispose_review_followups.sh <PR_ID> triage.json --fro
 ```json
 [
   {"item": 1, "disposition": "fixed", "rationale": "commit abc123 adds the guard"},
-  {"item": 2, "disposition": "accepted", "rationale": "jsdom cannot measure layout; Argus STG remains oracle"},
+  {"item": 2, "disposition": "accepted", "rationale": "jsdom cannot measure layout; <external-stg-oracle> remains oracle"},
   {"item": 3, "disposition": "deferred", "rationale": "requires the planned migration"}
 ]
 ```
@@ -123,9 +125,9 @@ Fixed and accepted items require rationale. Missing items, duplicate items, unsa
 
 3. Call the check at the end of `wait_*_pipeline` and in **auto-merge** (checkout **default branch** + `.themis-agent`, never PR head, before merge).
 
-4. **Bitbucket Pipeline** (after Themis review step): run `check_review_followups_disposed.sh`; on failure optionally `file_review_followups.sh --from-comment` before merge gate.
+4. **Bitbucket Pipeline** (after Themis review step): run `check_review_followups_disposed.sh`; on failure run `dispose_review_followups.sh <PR_ID> triage.json --from-comment` before the merge gate.
 
-Thin wrappers under each engine’s `scripts/` should only set env and exec these scripts.
+Thin wrappers under each engine’s `scripts/` should only set env and exec these scripts. New and migrated wrappers must call `dispose_review_followups.sh` so each item has an audit trail. Direct `file_review_followups.sh` calls remain supported only for legacy defer-all compatibility; the marker + fingerprint gate intentionally continues to recognize their historical comments.
 
 ## Idempotency
 

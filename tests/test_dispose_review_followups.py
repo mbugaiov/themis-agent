@@ -53,7 +53,7 @@ class TestBuildPlan(unittest.TestCase):
         ]
         rows = drf.parse_triage(json.dumps([
             {"item": 1, "disposition": "fixed", "rationale": "commit abc123 adds assertion"},
-            {"item": 2, "disposition": "accepted", "rationale": "class tokens are asserted; Argus STG remains oracle"},
+            {"item": 2, "disposition": "accepted", "rationale": "class tokens are asserted; external STG remains oracle"},
             {"item": 3, "disposition": "deferred", "rationale": "requires product migration"},
         ]))
         plan = drf.build_plan(items, rows)
@@ -107,7 +107,7 @@ class TestBuildPlan(unittest.TestCase):
             "jsdom limits prevent layout measurement",
             "class-token validation is used instead of pixels",
             "testid wording differs from the FR",
-            "Argus STG remains oracle",
+            "<external-stg-oracle> remains oracle",
         ]
         for text in caveats:
             with self.subTest(text=text):
@@ -127,7 +127,7 @@ class TestArtifacts(unittest.TestCase):
                     "kind": "risks",
                     "text": "class-token | pixel caveat",
                     "disposition": "accepted",
-                    "rationale": "Argus STG remains oracle",
+                    "rationale": "<external-stg-oracle> remains oracle",
                 }
             ]
         }
