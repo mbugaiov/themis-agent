@@ -190,6 +190,7 @@ def main() -> int:
             "Usage: review_followups.py <review.md> [--json|--issue-body]\n"
             "       review_followups.py --from-pr <PR> --repo owner/name [--json|--issue-body]\n"
             "       --issue-body requires --pr N --repo owner/name (renders one batched checklist)\n"
+            "       --issue-body may use --fingerprint FP to preserve a source review fingerprint\n"
             "Env: THEMIS_REVIEW_MARKER, THEMIS_FOLLOWUP_SECTIONS",
             file=sys.stderr,
         )
@@ -213,7 +214,8 @@ def main() -> int:
 
     issue_pr = _flag_value("--pr")
     issue_repo = _flag_value("--repo")
-    if issue_pr == "" or issue_repo == "":
+    issue_fingerprint = _flag_value("--fingerprint")
+    if issue_pr == "" or issue_repo == "" or issue_fingerprint == "":
         return 2
     if sys.argv[1] == "--from-pr":
         if len(sys.argv) < 3:
@@ -261,7 +263,11 @@ def main() -> int:
             pr_url = None
         print(
             format_batched_issue_body(
-                items, pr=issue_pr, repo=issue_repo, pr_url=pr_url
+                items,
+                pr=issue_pr,
+                repo=issue_repo,
+                fp=issue_fingerprint,
+                pr_url=pr_url,
             )
         )
     elif as_json:

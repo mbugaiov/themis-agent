@@ -7,12 +7,18 @@ Shared merge gate for all dual-review engines.
 | Section | Gate |
 |---------|------|
 | **Blocking issues** | CI fail until fixed in the PR |
-| **Configured follow-up sections** (see below) | Must **fix in PR** or **file one batched** backlog issue before merge |
+| **Configured follow-up sections** (see below) | Must dispose each item as **fixed**, **accepted**, or **deferred** before merge |
 | **Nits** (product / MVP repos) | **Comment-only** — do **not** gate merge; do **not** auto-file |
 
-**Preferred:** fix every gated follow-up on the **same** source PR before merge (no filing).
+**Preferred:** mark every gated follow-up **fixed** on the **same** source PR, with the commit or implementation detail in its rationale.
 
-**If deferring:** `file_review_followups.sh` opens **one** batched backlog issue with a checklist of all gated items. Factory pickup must close that checklist in **one** follow-up PR — never one issue/PR per bullet.
+**Accepted caveat:** use **accepted** only for a real limitation or oracle caveat and provide a rationale. Typical acceptable cases are jsdom limits, class-token assertions instead of pixel checks, testid wording versus a functional requirement, and “`<external-stg-oracle>` remains oracle.” Acceptance never files an issue.
+
+Acceptance is forbidden for security/authz/ACL/secrets, invented metrics or a wrong buildId, data honesty, PII, and OpenSpec `THEN` contradictions. These must be fixed or deferred.
+
+These deny-list categories are universal engine policy, including the build identity and specification-consistency cases. They apply even when a consumer uses different names for its build ID or does not otherwise use OpenSpec.
+
+**If deferring:** only **deferred** items go through `file_review_followups.sh`, which opens **one** batched backlog issue with a checklist. Factory pickup must close that checklist in **one** follow-up PR — never one issue/PR per bullet.
 
 **Do not** file one GitHub issue per Risk/Nit bullet. That floods backlog with cosmetic debt.
 
@@ -41,6 +47,8 @@ GitHub path is unchanged when env vars are unset.
 | `scripts/followups_transport.py` | SCM/tracker adapter (GitHub, Bitbucket, Jira) |
 | `scripts/check_review_followups_disposed.sh` | Fail if gated items lack disposal comment |
 | `scripts/file_review_followups.sh` | File **one** batched backlog issue + post disposal marker |
+| `scripts/dispose_review_followups.py` | Validate triage and build structured disposal artifacts |
+| `scripts/dispose_review_followups.sh` | Dispose items as fixed / accepted / deferred |
 
 ## Environment
 
@@ -93,22 +101,36 @@ Jira issues get labels `themis-followup` + `impl-dev` (+ extras). Source PR URL 
 ```bash
 # GitHub product (default):
 bash .themis-agent/scripts/check_review_followups_disposed.sh <PR>
-bash .themis-agent/scripts/file_review_followups.sh <PR> --from-comment
+bash .themis-agent/scripts/dispose_review_followups.sh <PR> triage.json --from-comment
 
 # Bitbucket + Jira product:
 export THEMIS_FOLLOWUP_SCM=bitbucket
 export THEMIS_FOLLOWUP_TRACKER=jira
 # … Bitbucket + Jira creds …
 bash .themis-agent/scripts/check_review_followups_disposed.sh <PR_ID>
-bash .themis-agent/scripts/file_review_followups.sh <PR_ID> --from-comment
+bash .themis-agent/scripts/dispose_review_followups.sh <PR_ID> triage.json --from-comment
 ```
+
+`triage.json` addresses every parsed review item by its one-based order:
+
+```json
+[
+  {"item": 1, "disposition": "fixed", "rationale": "commit abc123 adds the guard"},
+  {"item": 2, "disposition": "accepted", "rationale": "jsdom cannot measure layout; <external-stg-oracle> remains oracle"},
+  {"item": 3, "disposition": "deferred", "rationale": "requires the planned migration"}
+]
+```
+
+Fixed and accepted items require rationale. Missing items, duplicate items, unsafe acceptance, or accepted-without-rationale fail before any issue or disposal comment is posted.
 
 3. Call the check at the end of `wait_*_pipeline` and in **auto-merge** (checkout **default branch** + `.themis-agent`, never PR head, before merge).
 
-4. **Bitbucket Pipeline** (after Themis review step): run `check_review_followups_disposed.sh`; on failure optionally `file_review_followups.sh --from-comment` before merge gate.
+4. **Bitbucket Pipeline** (after Themis review step): run `check_review_followups_disposed.sh`; on failure run `dispose_review_followups.sh <PR_ID> triage.json --from-comment` before the merge gate.
 
-Thin wrappers under each engine’s `scripts/` should only set env and exec these scripts.
+Thin wrappers under each engine’s `scripts/` should only set env and exec these scripts. New and migrated wrappers must call `dispose_review_followups.sh` so each item has an audit trail. Direct `file_review_followups.sh` calls remain supported only for legacy defer-all compatibility; the marker + fingerprint gate intentionally continues to recognize their historical comments.
+
+The triage script sets internal `THEMIS_FOLLOWUP_FINGERPRINT_OVERRIDE` when it hands a deferred-only subset to `file_review_followups.sh`. This preserves the fingerprint of the complete source review in both the batched issue and disposal comment; wrappers must not set this variable themselves.
 
 ## Idempotency
 
-If a dispose comment with the same review **fingerprint** already exists on the PR/MR, `file_review_followups.sh` exits without re-filing.
+If a dispose comment with the same review **fingerprint** already exists on the PR/MR, either disposal path exits without re-filing. Historical short-form disposal comments remain valid because `check_review_followups_disposed.sh` still gates only on the unchanged marker + fingerprint contract.

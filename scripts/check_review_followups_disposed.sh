@@ -62,5 +62,5 @@ fi
 
 echo "FOLLOWUPS_CHECK_FAIL — $COUNT follow-up item(s) not disposed." >&2
 echo "Either fix them in the PR, or run (engine wrapper):" >&2
-echo "  bash scripts/file_review_followups.sh ${PR} --from-comment" >&2
+echo "  bash scripts/dispose_review_followups.sh ${PR} triage.json --from-comment" >&2
 exit 1
