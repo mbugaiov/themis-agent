@@ -190,7 +190,7 @@ def main() -> int:
             "Usage: review_followups.py <review.md> [--json|--issue-body]\n"
             "       review_followups.py --from-pr <PR> --repo owner/name [--json|--issue-body]\n"
             "       --issue-body requires --pr N --repo owner/name (renders one batched checklist)\n"
-            "       --fingerprint FP optionally preserves the source review fingerprint\n"
+            "       --issue-body may use --fingerprint FP to preserve a source review fingerprint\n"
             "Env: THEMIS_REVIEW_MARKER, THEMIS_FOLLOWUP_SECTIONS",
             file=sys.stderr,
         )

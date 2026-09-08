@@ -202,6 +202,55 @@ rm -f "$BAD_TRIAGE"
   && [[ "$BAD_TRIAGE_OUT" != *'FOLLOWUPS_FILED'* ]] \
   && ok "accepted without rationale fails before dispose/file" \
   || no "accepted without rationale must fail before side effects"
+HAPPY_DIR=$(mktemp -d)
+REAL_PYTHON=$(command -v python3)
+mkdir -p "$HAPPY_DIR/bin"
+cat >"$HAPPY_DIR/bin/python3" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == */followups_transport.py ]]; then
+  case "${2:-}" in
+    find-dispose)
+      exit 0
+      ;;
+    post-dispose)
+      shift 2
+      while [[ "$#" -gt 0 ]]; do
+        if [[ "$1" == "--body-file" ]]; then
+          cp "$2" "$CAPTURE_DISPOSE_BODY"
+          echo "posted comment_id=test"
+          exit 0
+        fi
+        shift
+      done
+      exit 2
+      ;;
+  esac
+fi
+exec "$REAL_PYTHON" "$@"
+EOF
+chmod +x "$HAPPY_DIR/bin/python3"
+cat >"$HAPPY_DIR/triage.json" <<'EOF'
+[
+  {"item":1,"disposition":"fixed","rationale":"commit abc123 renames helper"},
+  {"item":2,"disposition":"fixed","rationale":"commit abc123 adds parser test"},
+  {"item":3,"disposition":"fixed","rationale":"commit abc123 removes product label"},
+  {"item":4,"disposition":"fixed","rationale":"commit abc123 keeps linger"}
+]
+EOF
+HAPPY_OUT=$(PATH="$HAPPY_DIR/bin:$PATH" REAL_PYTHON="$REAL_PYTHON" \
+  CAPTURE_DISPOSE_BODY="$HAPPY_DIR/dispose.md" THEMIS_FOLLOWUP_REPO=owner/demo \
+  bash scripts/dispose_review_followups.sh 42 "$HAPPY_DIR/triage.json" \
+  tests/fixtures/review-followups/mixed.md 2>&1)
+HAPPY_BODY=$(cat "$HAPPY_DIR/dispose.md" 2>/dev/null || true)
+[[ "$HAPPY_OUT" == *'FOLLOWUPS_DISPOSED count=4 deferred=0'* ]] \
+  && [[ "$HAPPY_OUT" != *'FOLLOWUPS_FILED'* ]] \
+  && [[ "$HAPPY_BODY" == *'<!-- themis-review-followups-disposed -->'* ]] \
+  && [[ "$HAPPY_BODY" == *'<!-- fingerprint=c0b1fd20198917df -->'* ]] \
+  && [[ "$HAPPY_BODY" == *'| # | Review item | Disposition | Rationale |'* ]] \
+  && ok "all-fixed shell path posts structured dispose only" \
+  || no "all-fixed shell path must post structured dispose without filing"
+rm -rf "$HAPPY_DIR"
 grep -q 'THEMIS_FOLLOWUP_TRIAGE_PLAN' scripts/file_review_followups.sh \
   && grep -q 'file_review_followups.sh' scripts/dispose_review_followups.sh \
   && ok "deferred triage reuses one batched filing path" \

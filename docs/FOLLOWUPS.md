@@ -129,6 +129,8 @@ Fixed and accepted items require rationale. Missing items, duplicate items, unsa
 
 Thin wrappers under each engine’s `scripts/` should only set env and exec these scripts. New and migrated wrappers must call `dispose_review_followups.sh` so each item has an audit trail. Direct `file_review_followups.sh` calls remain supported only for legacy defer-all compatibility; the marker + fingerprint gate intentionally continues to recognize their historical comments.
 
+The triage script sets internal `THEMIS_FOLLOWUP_FINGERPRINT_OVERRIDE` when it hands a deferred-only subset to `file_review_followups.sh`. This preserves the fingerprint of the complete source review in both the batched issue and disposal comment; wrappers must not set this variable themselves.
+
 ## Idempotency
 
 If a dispose comment with the same review **fingerprint** already exists on the PR/MR, either disposal path exits without re-filing. Historical short-form disposal comments remain valid because `check_review_followups_disposed.sh` still gates only on the unchanged marker + fingerprint contract.

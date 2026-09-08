@@ -166,6 +166,42 @@ class TestArtifacts(unittest.TestCase):
         self.assertNotIn("- accepted", rendered)
         self.assertIn("- defer me", rendered)
 
+    def test_deferred_subset_preserves_full_review_fingerprint(self) -> None:
+        review_text = (
+            "## Suggestions\n- fix here\n- caveat here\n\n"
+            "## Risks\n- defer one\n- defer two\n"
+        )
+        full_items = drf.review_followups.extract_followups(review_text)
+        rows = drf.parse_triage(json.dumps([
+            {"item": 1, "disposition": "fixed", "rationale": "commit abc123 updates helper"},
+            {"item": 2, "disposition": "accepted", "rationale": "jsdom limitation"},
+            {"item": 3, "disposition": "deferred"},
+            {"item": 4, "disposition": "deferred"},
+        ]))
+        plan = drf.build_plan(full_items, rows)
+        deferred_items = drf.review_followups.extract_followups(
+            drf.build_deferred_review(plan)
+        )
+        deferred_fingerprint = drf.review_followups.fingerprint(deferred_items)
+        self.assertNotEqual(deferred_fingerprint, plan["fingerprint"])
+
+        issue_body = drf.review_followups.format_batched_issue_body(
+            deferred_items,
+            pr=29,
+            repo="owner/repo",
+            fp=plan["fingerprint"],
+        )
+        dispose_body = drf.build_dispose_body(
+            plan,
+            MARKER,
+            plan["fingerprint"],
+            issue_url="https://example.test/issues/10",
+        )
+        self.assertIn(f"**Fingerprint:** `{plan['fingerprint']}`", issue_body)
+        self.assertIn(f"<!-- fingerprint={plan['fingerprint']} -->", dispose_body)
+        self.assertNotIn(deferred_fingerprint, issue_body)
+        self.assertNotIn(deferred_fingerprint, dispose_body)
+
 
 if __name__ == "__main__":
     unittest.main()
