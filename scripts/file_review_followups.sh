@@ -100,7 +100,8 @@ fi
 
 JSON="$(python3 "$ROOT/scripts/review_followups.py" "$REVIEW_FILE" --json)"
 COUNT="$(echo "$JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("count") or 0)')"
-FP="$(echo "$JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("fingerprint") or "empty")')"
+PARSED_FP="$(echo "$JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("fingerprint") or "empty")')"
+FP="${THEMIS_FOLLOWUP_FINGERPRINT_OVERRIDE:-$PARSED_FP}"
 
 EXISTING="$(python3 "$ROOT/scripts/followups_transport.py" find-dispose "$PR" \
   --marker "$MARKER" --fingerprint "$FP" 2>/dev/null || true)"
@@ -133,7 +134,7 @@ fi
 echo "Filing ONE batched follow-up issue ($COUNT item(s)) via $TRACKER from PR #${PR}..."
 
 BODY_ISSUE="$(python3 "$ROOT/scripts/review_followups.py" "$REVIEW_FILE" \
-  --issue-body --pr "$PR" --repo "${REPO:-unknown/repo}")"
+  --issue-body --pr "$PR" --repo "${REPO:-unknown/repo}" --fingerprint "$FP")"
 
 TITLE_COUNT="$([[ "$COUNT" -eq 1 ]] && echo '1 item' || echo "${COUNT} items")"
 TITLE="Themis follow-ups (PR #${PR}): ${TITLE_COUNT} — fix together in one PR"
@@ -162,7 +163,12 @@ ISSUE_URL="$(echo "$ISSUE_URL" | tr -d '\r' | tail -1)"
 echo "  batched → $ISSUE_URL"
 
 DISPOSE_TMP="$(mktemp)"
-python3 -c "
+if [[ -n "${THEMIS_FOLLOWUP_TRIAGE_PLAN:-}" ]]; then
+  python3 "$ROOT/scripts/dispose_review_followups.py" body \
+    "$THEMIS_FOLLOWUP_TRIAGE_PLAN" --marker "$MARKER" \
+    --fingerprint "$FP" --issue-url "$ISSUE_URL" >"$DISPOSE_TMP"
+else
+  python3 -c "
 import importlib.util, sys
 from pathlib import Path
 spec = importlib.util.spec_from_file_location('followups_transport', Path('$ROOT/scripts/followups_transport.py'))
@@ -171,6 +177,7 @@ sys.modules['followups_transport'] = ft
 spec.loader.exec_module(ft)
 print(ft.build_dispose_body('$MARKER', '$FP', filed=True, issue_url='''$ISSUE_URL''', count=$COUNT))
 " >"$DISPOSE_TMP"
+fi
 python3 "$ROOT/scripts/followups_transport.py" post-dispose "$PR" --body-file "$DISPOSE_TMP" >/dev/null
 
 echo "FOLLOWUPS_FILED count=$COUNT issues=1 fingerprint=$FP url=$ISSUE_URL"
