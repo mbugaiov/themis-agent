@@ -303,6 +303,7 @@ have "review-rules/20-review-output.md"
 have "review-rules/30-change-description.md"
 have "review-rules/40-wiring-review-float.md"
 have "review-rules/50-reuse-existing.md"
+have "review-rules/60-design-pixel-gate.md"
 have "scripts/build_review_prompt.sh"
 chmod +x scripts/build_review_prompt.sh
 grep -q 'No new tests' review-rules/10-tests-must-have.md \
@@ -312,6 +313,12 @@ grep -q 'reuse existing' review-rules/50-reuse-existing.md \
   && grep -q 'Search the merge target\|search the merge target\|destination tree' review-rules/50-reuse-existing.md \
   && ok "50-reuse-existing requires base-tree search" \
   || no "50-reuse-existing missing reuse / base search bar"
+grep -q 'PIXEL_SURFACES' review-rules/60-design-pixel-gate.md \
+  && grep -q 'PIXEL_ELEMENTS' review-rules/60-design-pixel-gate.md \
+  && grep -q 'required: false' review-rules/60-design-pixel-gate.md \
+  && grep -q '≤ 0.5%' review-rules/60-design-pixel-gate.md \
+  && ok "60-design-pixel-gate requires 99.5% screens and controls" \
+  || no "60-design-pixel-gate missing 99.5% catalog bar"
 grep -q 'Entry-only twin' review-rules/50-reuse-existing.md \
   && grep -q 'parametrized' review-rules/50-reuse-existing.md \
   && grep -q 'Not a Suggestion' review-rules/50-reuse-existing.md \
@@ -343,7 +350,8 @@ if grep -q 'Shared Themis review rules' <<<"$PROMPT_OUT" \
   && grep -q '10-tests-must-have' <<<"$PROMPT_OUT" \
   && grep -q '20-review-output' <<<"$PROMPT_OUT" \
   && grep -q '30-change-description' <<<"$PROMPT_OUT" \
-  && grep -q '50-reuse-existing' <<<"$PROMPT_OUT"; then
+  && grep -q '50-reuse-existing' <<<"$PROMPT_OUT" \
+  && grep -q '60-design-pixel-gate' <<<"$PROMPT_OUT"; then
   ok "build_review_prompt inlines full pack"
 else
   no "build_review_prompt must inline NN-*.md pack"
