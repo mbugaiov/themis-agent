@@ -316,9 +316,9 @@ grep -q 'reuse existing' review-rules/50-reuse-existing.md \
 grep -q 'PIXEL_SURFACES' review-rules/60-design-pixel-gate.md \
   && grep -q 'PIXEL_ELEMENTS' review-rules/60-design-pixel-gate.md \
   && grep -q 'required: false' review-rules/60-design-pixel-gate.md \
-  && grep -q '≤ 2%' review-rules/60-design-pixel-gate.md \
-  && ok "60-design-pixel-gate requires 98% screens and controls" \
-  || no "60-design-pixel-gate missing 98% catalog bar"
+  && grep -q '≤ 0.5%' review-rules/60-design-pixel-gate.md \
+  && ok "60-design-pixel-gate requires 99.5% screens and controls" \
+  || no "60-design-pixel-gate missing 99.5% catalog bar"
 grep -q 'Entry-only twin' review-rules/50-reuse-existing.md \
   && grep -q 'parametrized' review-rules/50-reuse-existing.md \
   && grep -q 'Not a Suggestion' review-rules/50-reuse-existing.md \

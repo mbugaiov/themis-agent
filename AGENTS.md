@@ -22,7 +22,7 @@ Product language/architecture extras stay in each repo’s `.cursor/rules/code-r
 
 - **Not a language linter** — do not focus on TypeScript/Python style.
 - **Shared review policy lives in `review-rules/`** — never copy into consumers.
-  `60-design-pixel-gate` Blocks UI PRs that skip/weaken 98% `PIXEL_SURFACES` /
+  `60-design-pixel-gate` Blocks UI PRs that skip/weaken 99.5% `PIXEL_SURFACES` /
   `PIXEL_ELEMENTS` when a prototype or Figma SoT exists.
 - **Docs, skills, rules, templates, workflow prompts** are first-class.
 - **Engines** = multi-tenant brain → maximum sterility.

@@ -10,7 +10,7 @@ app UI, this lens does not apply.
 ## Bar
 
 When a prototype or Figma URL is the visual source of truth, shipped UI must
-match it at **mismatch ≤ 2% (≥ 98% similarity)** on:
+match it at **mismatch ≤ 0.5% (≥ 99.5% similarity)** on:
 
 - every gated **screen** (`PIXEL_SURFACES` or documented scored band)
 - every chrome **control** (`PIXEL_ELEMENTS`: dropdown, text, icon, button,
@@ -21,10 +21,10 @@ match it at **mismatch ≤ 2% (≥ 98% similarity)** on:
 1. **UI added or restyled** (routes, components, CSS) **without** a new/updated
    required pixel catalog row for that surface or control.
 2. **`required: false` / `skipReason`** on a PIXEL_* row (or equivalent skip of
-   the 98% bar) introduced or kept to make CI green.
+   the 99.5% bar) introduced or kept to make CI green.
 3. **Pixel tests deleted or threshold loosened** (e.g. `MAX_MISMATCH` raised)
-   without an OpenSpec/product contract that replaces the 98% bar.
-4. **Docs/skills claim 98%** while code still skips screens or controls.
+   without an OpenSpec/product contract that replaces the 99.5% bar.
+4. **Docs/skills claim 99.5%** while code still skips screens or controls.
 
 ## What does not block
 
