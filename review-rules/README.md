@@ -31,6 +31,7 @@ Do **not** put sibling product brand names or customer slugs in these files
 | `30-change-description` | Opaque / missing intent |
 | `40-wiring-review-float` | Do not Blocking-flag unpinned review checkout |
 | `50-reuse-existing` | Search **base** for duplicate / near-duplicate code to reuse — **entry-only page/fixture twins are Blocking** |
+| `60-design-pixel-gate` | UI PRs must keep 98% PIXEL_SURFACES + PIXEL_ELEMENTS when design SoT exists |
 
 ## Local vs shared
 
